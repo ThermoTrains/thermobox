@@ -57,7 +57,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         private int _noMotionCount;
 
         private DateTime _entryDateTime = DateTime.MinValue;
-        private DateTime? _exitDateTime = null;
+        private DateTime? _exitDateTime;
         private Image<Gray, byte>[] _images;
 
         private bool _paused;
