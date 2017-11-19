@@ -28,6 +28,15 @@ namespace SebastianHaeni.ThermoBox.TemperatureReader.Temper
 
         private void ReadTemperature(string message)
         {
+            if (message == null)
+            {
+                Log.Warn("Got stop command but never heard of start command.");
+                return;
+            }
+
+            // clear out filename
+            _filename = null;
+
             if (!_bulk.IsOpen)
             {
                 Log.Error("Bulk interface is not open");
