@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Reflection;
 using Emgu.CV;
 using Emgu.CV.Structure;
 using log4net;
+using SebastianHaeni.ThermoBox.Common.Time;
 
 namespace SebastianHaeni.ThermoBox.Common.Motion
 {
@@ -23,44 +25,46 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         /// <summary>
         /// Once this threshold is reached, the background will be reinitailized.
         /// </summary>
-        private const int NoBoundingBoxBackgroundThreshold = 100;
+        public const int NoBoundingBoxBackgroundThreshold = 30;
 
         /// <summary>
         /// Once this threshold is reached, the recording will be resumed.
         /// After we find bounding boxes again, we resume.
         /// </summary>
-        private const int NoMotionPauseThreshold = 12;
+        public const int NoMotionPauseThreshold = 5;
 
         /// <summary>
         /// The minimum time that has to pass after a train exited the image until one can
         /// entering can trigger a new recording.
         /// </summary>
-        private const int MinTimeAfterExit = 30;
+        public const int MinTimeAfterExit = 3;
 
         /// <summary>
         /// The minimum time that has to pass after the train entered. Otherwise an abort will
         /// be published.
         /// </summary>
-        private const int MinTimeAfterEntry = 30;
+        public const int MinTimeAfterEntry = 5;
 
         /// <summary>
         /// Maximum time a recording can be. After it has passed, the recording will be stopped.
         /// Assuming a train has 6 cars, each about 25 meters long and it travels at 1 km/h that
         /// would result in 10 minutes or 600 seconds.
         /// </summary>
-        private const int MaxEntryDuration = 600;
+        public const int MaxRecordingDuration = 600;
 
-        private MotionFinder<byte> _motionFinder;
+        public MotionFinder<byte> MotionFinder { get; private set; }
 
-        private int _noBoundingBoxCount;
+        private int _recordingSeconds;
         private int _foundNothingCount;
-        private int _noMotionCount;
-
+        private DateTime? _noBoundingBox;
+        private DateTime? _lastTick;
+        private DateTime? _noMotionCount;
         private DateTime _entryDateTime = DateTime.MinValue;
         private DateTime? _exitDateTime;
         private Image<Gray, byte>[] _images;
 
         private bool _paused;
+        private readonly ITimeProvider _timeProvider = new ActualTimeProvider();
 
         public EntryDetector()
         {
@@ -72,22 +76,27 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             UpdateMotionFinder(background);
         }
 
+        public EntryDetector(Image<Gray, byte> background, ITimeProvider timeProvider) : this(background)
+        {
+            _timeProvider = timeProvider;
+        }
+
         private void OnTrainEnter()
         {
-            if (DateTime.Now.Subtract(TimeSpan.FromSeconds(MinTimeAfterExit)) < _exitDateTime)
+            if (_timeProvider.Now.Subtract(TimeSpan.FromSeconds(MinTimeAfterExit)) < _exitDateTime)
             {
                 // It has not been long enough since the last exit.
                 return;
             }
 
             CurrentState = DetectorState.Entry;
-            _entryDateTime = DateTime.Now;
+            _entryDateTime = _timeProvider.Now;
             _foundNothingCount = 0;
 
             if (_exitDateTime == null)
             {
                 // We also set exit time if it's null
-                _exitDateTime = DateTime.Now;
+                _exitDateTime = _timeProvider.Now;
             }
 
             Enter?.Invoke(this, new EventArgs());
@@ -96,9 +105,9 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         private void OnTrainExit()
         {
             CurrentState = DetectorState.Exit;
-            _exitDateTime = DateTime.Now;
+            _exitDateTime = _timeProvider.Now;
 
-            if (DateTime.Now.Subtract(TimeSpan.FromSeconds(MinTimeAfterEntry)) < _entryDateTime)
+            if (_timeProvider.Now.Subtract(TimeSpan.FromSeconds(MinTimeAfterEntry)) < _entryDateTime)
             {
                 // It has not been long enough since the entry. So this probably was a misfire.
                 Log.Warn($"Entry followed by exit was shorter than {MinTimeAfterEntry}s. Aborting.");
@@ -124,18 +133,23 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
         public void Tick(Image<Gray, byte>[] images)
         {
-            if (CurrentState == DetectorState.Entry &&
-                DateTime.Now.Subtract(TimeSpan.FromSeconds(MaxEntryDuration)) > _exitDateTime)
+            if (CurrentState == DetectorState.Entry && !_paused && _lastTick.HasValue)
             {
-                // We are in enter mode for quite long now, we should abort.
-                Log.Warn($"Recording for longer than {MaxEntryDuration}s.");
-                OnTrainExit();
-                return;
+                _recordingSeconds += (int) _timeProvider.Now.Subtract(_lastTick.Value).TotalSeconds;
+
+                if (_recordingSeconds > MaxRecordingDuration)
+                {
+                    // We are in enter mode for quite long now, we should abort.
+                    Log.Warn($"Recording for longer than {MaxRecordingDuration}s.");
+                    OnTrainExit();
+                    return;
+                }
             }
 
+            _lastTick = _timeProvider.Now;
             _images = images;
 
-            if (_motionFinder == null)
+            if (MotionFinder == null)
             {
                 UpdateMotionFinder(_images.First());
             }
@@ -144,7 +158,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             var maxValue = new Gray(byte.MaxValue);
 
             var boundingBoxes = _images
-                .Select(image => _motionFinder.FindBoundingBox(image, threshold, maxValue))
+                .Select(image => MotionFinder.FindBoundingBox(image, threshold, maxValue))
                 .Where(box => box.HasValue)
                 .Select(box => box.Value)
                 .ToArray();
@@ -156,17 +170,20 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             if (boundingBoxes.Any())
             {
-                _noBoundingBoxCount = 0;
+                _noBoundingBox = null;
 
                 if (CurrentState != DetectorState.Entry)
                 {
                     return;
                 }
 
-                if (!_motionFinder.HasDifference(_images.First(), _images.Last(), threshold, maxValue))
+                if (!MotionFinder.HasDifference(_images.First(), _images.Last(), threshold, maxValue))
                 {
-                    // The train (or whatever) is covering the whole image and it's not moving
-                    _noMotionCount++;
+                    if (_noMotionCount == null)
+                    {
+                        // The train (or whatever) is covering the whole image and it's not moving
+                        _noMotionCount = _timeProvider.Now;
+                    }
                 }
                 else if (_paused)
                 {
@@ -175,30 +192,33 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                     _paused = false;
                 }
 
-                if (_noMotionCount > NoMotionPauseThreshold)
+                if (_paused ||
+                    _noMotionCount == null ||
+                    _timeProvider.Now.Subtract(TimeSpan.FromSeconds(NoMotionPauseThreshold)) <= _noMotionCount)
                 {
-                    _noMotionCount = 0;
-
-                    if (!_paused)
-                    {
-                        // Not found moving things for a while => pause until we find movement again.
-                        Pause?.Invoke(this, new EventArgs());
-                        _paused = true;
-                    }
+                    return;
                 }
+
+                // Not found moving things for a while => pause until we find movement again.
+                _noMotionCount = null;
+                Pause?.Invoke(this, new EventArgs());
+                _paused = true;
 
                 return;
             }
 
-            _noBoundingBoxCount++;
+            if (!_noBoundingBox.HasValue)
+            {
+                _noBoundingBox = _timeProvider.Now;
+            }
 
-            if (_noBoundingBoxCount > NoBoundingBoxBackgroundThreshold)
+            if (_timeProvider.Now.Subtract(_noBoundingBox.Value).TotalSeconds > NoBoundingBoxBackgroundThreshold)
             {
                 UpdateMotionFinder(_images.First());
             }
         }
 
-        private void Evaluate(Rectangle[] boundingBoxes)
+        private void Evaluate(IReadOnlyCollection<Rectangle> boundingBoxes)
         {
             // Not found anything useful.
             if (!boundingBoxes.Any())
@@ -208,9 +228,9 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             var first = boundingBoxes.First();
 
-            var threshold = _motionFinder.Background.Size.Width / 100;
+            var threshold = MotionFinder.Background.Size.Width / 100;
             var leftBound = first.X < threshold;
-            var rightBound = first.X + first.Width > _motionFinder.Background.Width - threshold;
+            var rightBound = first.X + first.Width > MotionFinder.Background.Width - threshold;
 
             if (!leftBound && !rightBound)
             {
@@ -238,7 +258,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             // The count of images that indicates consistent width change.
             // The first image represents the start, so we cannot count that.
-            var referenceCount = boundingBoxes.Count() - 1;
+            var referenceCount = boundingBoxes.Count - 1;
 
             // Entry
             if (indicator == referenceCount)
@@ -292,8 +312,8 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             }
 
             Log.Debug("(Re)initializing background");
-            _motionFinder = new MotionFinder<byte>(background);
-            _noBoundingBoxCount = 0;
+            MotionFinder = new MotionFinder<byte>(background);
+            _noBoundingBox = null;
             _foundNothingCount = 0;
         }
     }

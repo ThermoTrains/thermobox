@@ -1,11 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 
 namespace SebastianHaeni.ThermoBox.Common.Motion
 {
     internal static class DetectorExtensions
     {
-        public static DetectorState[] GetStates(this DetectorState state)
+        public static IEnumerable<DetectorState> GetStates(this DetectorState state)
         {
             return GetAttr(state).States;
         }

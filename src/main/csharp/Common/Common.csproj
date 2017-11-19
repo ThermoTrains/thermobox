@@ -89,8 +89,11 @@
     <Compile Include="src\Motion\MotionFinder.cs" />
     <Compile Include="src\Motion\NextStates.cs" />
     <Compile Include="src\Motion\DetectorState.cs" />
+    <Compile Include="src\Time\ActualTimeProvider.cs" />
+    <Compile Include="src\Time\ExternalTimeProvider.cs" />
     <Compile Include="src\Util\DebugUtil.cs" />
     <Compile Include="src\Util\FileUtil.cs" />
+    <Compile Include="src\Time\ITimeProvider.cs" />
     <Compile Include="src\Util\MathUtil.cs" />
     <Compile Include="src\Util\RavenAppender.cs" />
     <Compile Include="src\Util\Recorder.cs" />
