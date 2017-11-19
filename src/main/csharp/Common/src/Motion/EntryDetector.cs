@@ -58,7 +58,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         private int _foundNothingCount;
         private DateTime? _noBoundingBox;
         private DateTime? _lastTick;
-        private DateTime? _noMotionCount;
+        private DateTime? _noMotionTimestamp;
         private DateTime _entryDateTime = DateTime.MinValue;
         private DateTime? _exitDateTime;
         private Image<Gray, byte>[] _images;
@@ -179,28 +179,33 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
                 if (!MotionFinder.HasDifference(_images.First(), _images.Last(), threshold, maxValue))
                 {
-                    if (_noMotionCount == null)
+                    if (_noMotionTimestamp == null)
                     {
                         // The train (or whatever) is covering the whole image and it's not moving
-                        _noMotionCount = _timeProvider.Now;
+                        _noMotionTimestamp = _timeProvider.Now;
                     }
                 }
-                else if (_paused)
+                else
                 {
-                    // We were paused => resume since we have found some moving things again.
-                    Resume?.Invoke(this, new EventArgs());
-                    _paused = false;
+                    _noMotionTimestamp = null;
+
+                    if (_paused)
+                    {
+                        // We were paused => resume since we have found some moving things again.
+                        Resume?.Invoke(this, new EventArgs());
+                        _paused = false;
+                    }
                 }
 
                 if (_paused ||
-                    _noMotionCount == null ||
-                    _timeProvider.Now.Subtract(TimeSpan.FromSeconds(NoMotionPauseThreshold)) <= _noMotionCount)
+                    _noMotionTimestamp == null ||
+                    _timeProvider.Now.Subtract(TimeSpan.FromSeconds(NoMotionPauseThreshold)) <= _noMotionTimestamp)
                 {
                     return;
                 }
 
                 // Not found moving things for a while => pause until we find movement again.
-                _noMotionCount = null;
+                _noMotionTimestamp = null;
                 Pause?.Invoke(this, new EventArgs());
                 _paused = true;
 
