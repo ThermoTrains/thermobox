@@ -380,6 +380,8 @@ namespace Test.Common.Motion
             // after a long pause the video should not be stopped
             timeProvider.CurrentTime = timeProvider.CurrentTime.AddSeconds(EntryDetector.MaxRecordingDuration);
             detector.Tick(resumingImages);
+            timeProvider.CurrentTime = timeProvider.CurrentTime.AddSeconds(2);
+            detector.Tick(resumingImages);
             Assert.AreEqual(DetectorState.Entry, detector.CurrentState);
             Assert.IsFalse(pauseRaised);
             Assert.IsTrue(resumeRaised);
@@ -437,6 +439,8 @@ namespace Test.Common.Motion
             pauseRaised = false;
 
             // tick with motion again (3)
+            timeProvider.CurrentTime = timeProvider.CurrentTime.AddSeconds(5);
+            detector.Tick(resumingImages);
             timeProvider.CurrentTime = timeProvider.CurrentTime.AddSeconds(5);
             detector.Tick(resumingImages);
             Assert.AreEqual(DetectorState.Entry, detector.CurrentState);
@@ -557,6 +561,8 @@ namespace Test.Common.Motion
                 // resume
                 timeProvider.CurrentTime = timeProvider.CurrentTime.AddSeconds(15 * 60);
                 detector.Tick(resumingImages);
+                timeProvider.CurrentTime = timeProvider.CurrentTime.AddSeconds(2);
+                detector.Tick(resumingImages);
                 Assert.AreEqual(DetectorState.Entry, detector.CurrentState);
                 Assert.IsFalse(pauseRaised);
                 Assert.IsTrue(resumeRaised);
@@ -656,6 +662,60 @@ namespace Test.Common.Motion
             detector.Tick(images);
 
             Assert.AreEqual(background, detector.MotionFinder.Background);
+        }
+
+        /// <summary>
+        /// Test that resuming doesn't happen too fast so the slightest difference does not trigger.
+        /// </summary>
+        [TestMethod]
+        public void TestNoFastResume()
+        {
+            var timeProvider = new ExternalTimeProvider();
+            var detector = new EntryDetector(Background, timeProvider);
+            var enterRaised = false;
+            var pauseRaised = false;
+
+            detector.Enter += (sender, args) => enterRaised = true;
+            detector.Exit += (sender, args) => Assert.Fail("Exit not expected");
+            detector.Abort += (sender, args) => Assert.Fail("Abort not expected");
+            detector.Pause += (sender, args) => pauseRaised = true;
+            detector.Resume += (sender, args) => Assert.Fail("Resume not expected");
+
+            var entryImages = Enumerable.Range(2, 3)
+                .Select(i => new Image<Rgb, byte>($@"Resources\train-{i}.jpg"))
+                .Select(train => train.Convert<Gray, byte>())
+                .ToArray();
+
+            var noMotionImages = Enumerable.Range(0, 1)
+                .Select(i => new Image<Rgb, byte>(@"Resources\train-3.jpg"))
+                .Select(image => image.Convert<Gray, byte>())
+                .ToArray();
+
+            var resumingImages = Enumerable.Range(3, 2)
+                .Select(i => new Image<Rgb, byte>($@"Resources\train-{i}.jpg"))
+                .Select(image => image.Convert<Gray, byte>())
+                .ToArray();
+
+            timeProvider.CurrentTime = Year2000;
+            detector.Tick(entryImages);
+            Assert.AreEqual(DetectorState.Entry, detector.CurrentState);
+            Assert.IsTrue(enterRaised);
+            Assert.IsFalse(pauseRaised);
+
+            // tick with no motion (1)
+            detector.Tick(noMotionImages);
+            Assert.AreEqual(DetectorState.Entry, detector.CurrentState);
+            Assert.IsFalse(pauseRaised);
+
+            // tick with no motion (2)
+            timeProvider.CurrentTime = timeProvider.CurrentTime.AddSeconds(EntryDetector.NoMotionPauseThreshold + 1);
+            detector.Tick(noMotionImages);
+            Assert.AreEqual(DetectorState.Entry, detector.CurrentState);
+            Assert.IsTrue(pauseRaised);
+
+            // motion that should not trigger since not enough time has passed to trigger a resume
+            detector.Tick(resumingImages);
+            Assert.AreEqual(DetectorState.Entry, detector.CurrentState);
         }
     }
 }

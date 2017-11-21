@@ -28,10 +28,15 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         public const int NoBoundingBoxBackgroundThreshold = 30;
 
         /// <summary>
-        /// Once this threshold is reached, the recording will be resumed.
+        /// Once this threshold is reached, the recording will be paused.
         /// After we find bounding boxes again, we resume.
         /// </summary>
-        public const int NoMotionPauseThreshold = 5;
+        public const int NoMotionPauseThreshold = 10;
+
+        /// <summary>
+        /// Minimum time motion has to be picked up again when we are paused.
+        /// </summary>
+        public const int ResumingThreshold = 1;
 
         /// <summary>
         /// The minimum time that has to pass after a train exited the image until one can
@@ -59,6 +64,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         private DateTime? _noBoundingBox;
         private DateTime? _lastTick;
         private DateTime? _noMotionTimestamp;
+        private DateTime? _lastMotionTimestamp;
         private DateTime _entryDateTime = DateTime.MinValue;
         private DateTime? _exitDateTime;
         private Image<Gray, byte>[] _images;
@@ -154,7 +160,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                 UpdateMotionFinder(_images.First());
             }
 
-            var threshold = new Gray(20.0);
+            var threshold = new Gray(10.0);
             var maxValue = new Gray(byte.MaxValue);
 
             var boundingBoxes = _images
@@ -179,6 +185,8 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
                 if (!MotionFinder.HasDifference(_images.First(), _images.Last(), threshold, maxValue))
                 {
+                    _lastMotionTimestamp = null;
+
                     if (_noMotionTimestamp == null)
                     {
                         // The train (or whatever) is covering the whole image and it's not moving
@@ -189,7 +197,13 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                 {
                     _noMotionTimestamp = null;
 
-                    if (_paused)
+                    if (_lastMotionTimestamp == null)
+                    {
+                        _lastMotionTimestamp = _timeProvider.Now;
+                    }
+
+                    if (_paused &&
+                        _timeProvider.Now.Subtract(TimeSpan.FromSeconds(ResumingThreshold)) > _lastMotionTimestamp)
                     {
                         // We were paused => resume since we have found some moving things again.
                         Resume?.Invoke(this, new EventArgs());
