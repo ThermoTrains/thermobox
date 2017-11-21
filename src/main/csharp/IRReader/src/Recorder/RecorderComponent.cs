@@ -105,9 +105,9 @@ namespace SebastianHaeni.ThermoBox.IRReader.Recorder
             // Copy this because a new recording might start while we're finishing this one.
             var currentRecordingFilename = _currentRecording;
 
-            if (_camera.Recorder.Status != RecorderState.Recording)
+            if (_camera.Recorder.Status == RecorderState.Stopped)
             {
-                Log.Warn($"Cannot stop recording. Current state is {_camera.Recorder.Status}");
+                Log.Warn("Cannot stop recording. Current state already stopped");
                 return;
             }
 
