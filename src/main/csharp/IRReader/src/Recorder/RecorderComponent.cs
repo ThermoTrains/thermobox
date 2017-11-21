@@ -195,7 +195,7 @@ namespace SebastianHaeni.ThermoBox.IRReader.Recorder
         /// </summary>
         private void PauseCapture()
         {
-            if (_camera.Recorder.Status != RecorderState.Recording)
+            if (_camera.Recorder.Status == RecorderState.Stopped)
             {
                 Log.Warn("Cannot pause recording. It is currently not recording.");
                 return;
@@ -209,6 +209,12 @@ namespace SebastianHaeni.ThermoBox.IRReader.Recorder
         /// </summary>
         private void ResumeCapture()
         {
+            if (_camera.Recorder.Status == RecorderState.Recording)
+            {
+                Log.Info("Got resume command. But we're already recording.");
+                return;
+            }
+
             if (_camera.Recorder.Status != RecorderState.Paused)
             {
                 Log.Warn("Cannot resume. It is currently not paused.");
