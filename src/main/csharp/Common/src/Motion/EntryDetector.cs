@@ -72,6 +72,8 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         private bool _paused;
         private readonly ITimeProvider _timeProvider = new ActualTimeProvider();
 
+        private static long _entryCount;
+
         public EntryDetector()
         {
             // constructor with no background image, background will be initialized lazily
@@ -169,7 +171,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                 .Select(box => box.Value)
                 .ToArray();
 
-            Evaluate(boundingBoxes);
+            Evaluate(boundingBoxes, _images.Last());
 
             // After some time we need to use a new background.
             // We do this if either no bounding box was found n times or if nothing was the result n times.
@@ -237,7 +239,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             }
         }
 
-        private void Evaluate(IReadOnlyCollection<Rectangle> boundingBoxes)
+        private void Evaluate(IReadOnlyCollection<Rectangle> boundingBoxes, Image<Gray, byte> image)
         {
             // Not found anything useful.
             if (!boundingBoxes.Any())
@@ -282,6 +284,9 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             // Entry
             if (indicator == referenceCount)
             {
+                image.Draw(boundingBoxes.Last(), new Gray(255), 2);
+                image.Save($@"C:\Thermobox\entry-{++_entryCount}.jpg");
+
                 ChangeState(DetectorState.Entry);
                 return;
             }
