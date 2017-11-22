@@ -10,6 +10,8 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
     public class MotionFinder<TDepth>
         where TDepth : new()
     {
+        private const double MinHeightFactor = .5;
+
         public Image<Gray, TDepth> Background { get; }
 
         public MotionFinder(Image<Gray, TDepth> background)
@@ -32,6 +34,12 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             // create bounding box of all contours
             var bbox = MathUtil.GetMaxRectangle(contours);
+
+            
+            if (bbox.Height < source.Height * MinHeightFactor)
+            {
+                return null;
+            }
 
             return bbox;
         }

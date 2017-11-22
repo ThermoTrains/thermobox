@@ -13,6 +13,7 @@ using SebastianHaeni.ThermoBox.Common.Motion;
 using SebastianHaeni.ThermoBox.Common.Util;
 using Configuration = Basler.Pylon.Configuration;
 using System.IO;
+using Emgu.CV.CvEnum;
 
 namespace SebastianHaeni.ThermoBox.VisibleLightReader
 {
@@ -100,6 +101,13 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             // Buffer to put debayered RGB image into (3 channels)
             var convertedBuffer = new byte[_size.Width * _size.Height * 3];
 
+            // Some precalculated constants that we'll use later
+            var roiWidthCutOff = _size.Width / 5;
+            var roiHeightCutOff = _size.Height / 3;
+            var roi = new Rectangle(roiWidthCutOff, roiHeightCutOff, roiWidthCutOff * 3, roiHeightCutOff);
+            var downscaledSize = new Size(_size.Width / 4, _size.Height / 4);
+
+            // Count error frames
             var errorCount = 0;
 
             // Grab images.
@@ -139,8 +147,10 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
                     // Write to recorder (if the recorder is not recording, it will discard it)
                     _recorder.Write(image);
 
-                    // Convert to grayscale image for further analysis
+                    // Convert to grayscale image for further analysis and cut down the region of interest
                     var grayImage = image.Convert<Gray, byte>();
+                    grayImage.ROI = roi;
+                    CvInvoke.Resize(grayImage, grayImage, downscaledSize);
 
                     // Append to analyze array
                     images[i] = grayImage;
