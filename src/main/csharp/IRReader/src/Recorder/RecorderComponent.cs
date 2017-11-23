@@ -30,6 +30,14 @@ namespace SebastianHaeni.ThermoBox.IRReader.Recorder
         public RecorderComponent(ThermalGigabitCamera camera)
         {
             _camera = camera;
+
+            // Reduce FPS to 1 since the trains are driving very slow.
+            // A recording can be as long as 15 minutes. With the theoretical maximum of 30 FPS, that would produce
+            // about 18 GiB of raw data. That takes about 1 hour to compress and render into a video. To reduce that,
+            // we reduce the FPS here. And since we grab single images from the video later, it doesn't matter how many
+            // frames we have per second.
+            _camera.Fps = 1;
+
             camera.ConnectionStatusChanged += ConnectionStatusChanged;
 
             Subscription(Commands.CaptureStart, (channel, message) => StartCapture(message));
