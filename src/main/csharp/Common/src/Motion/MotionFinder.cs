@@ -10,7 +10,8 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
     public class MotionFinder<TDepth>
         where TDepth : new()
     {
-        private const double MinHeightFactor = .5;
+        private const double MinHeightFactor = .3;
+        private static long i;
 
         public Image<Gray, TDepth> Background { get; }
 
@@ -63,12 +64,20 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             t = t.Erode(8);
 
             // dilate the threshold image to fill in holes
-            t = t.Dilate(8);
+            t = t.Dilate(15);
 
             // find contours
             var contours = new VectorOfVectorOfPoint();
             var hierarchy = new Mat();
             CvInvoke.FindContours(t, contours, hierarchy, RetrType.External, ChainApproxMethod.ChainApproxSimple);
+
+            if (contours.Size > 0)
+            {
+                source.Save($@"C:\Thermobox\{++i}orig.jpg");
+                diff.Save($@"C:\Thermobox\{i}diff.jpg");
+                t.Save($@"C:\Thermobox\{i}contours.jpg");
+                if (i > 100) { i = 0; }
+            }
 
             return contours;
         }

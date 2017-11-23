@@ -52,10 +52,9 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
         /// <summary>
         /// Maximum time a recording can be. After it has passed, the recording will be stopped.
-        /// Assuming a train has 6 cars, each about 25 meters long and it travels at 1 km/h that
-        /// would result in 10 minutes or 600 seconds.
+        /// Assuming the longest trains are 300 meters long and travel at 0.9 km/h that would result in 15 minutes.
         /// </summary>
-        public const int MaxRecordingDuration = 600;
+        public const int MaxRecordingDuration = 60 * 15;
 
         public MotionFinder<byte> MotionFinder { get; private set; }
 
@@ -67,10 +66,13 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         private DateTime? _lastMotionTimestamp;
         private DateTime _entryDateTime = DateTime.MinValue;
         private DateTime? _exitDateTime;
+        private DateTime? _resetBackground;
         private Image<Gray, byte>[] _images;
 
         private bool _paused;
         private readonly ITimeProvider _timeProvider = new ActualTimeProvider();
+        private static long _backgroundIndex;
+        private readonly Action _correctExposure;
 
         private static long _entryCount;
 
@@ -79,9 +81,14 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             // constructor with no background image, background will be initialized lazily
         }
 
+        public EntryDetector(Action correctExposure) : this()
+        {
+            _correctExposure = correctExposure;
+        }
+
         public EntryDetector(Image<Gray, byte> background)
         {
-            UpdateMotionFinder(background);
+            ResetBackground(background);
         }
 
         public EntryDetector(Image<Gray, byte> background, ITimeProvider timeProvider) : this(background)
@@ -135,7 +142,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             if (_foundNothingCount > NoBoundingBoxBackgroundThreshold)
             {
-                UpdateMotionFinder(_images.First());
+                UpdateMotionFinder();
             }
         }
 
@@ -157,12 +164,12 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             _lastTick = _timeProvider.Now;
             _images = images;
 
-            if (MotionFinder == null)
+            if (MotionFinder == null || _resetBackground.HasValue && _resetBackground.Value < _timeProvider.Now)
             {
-                UpdateMotionFinder(_images.First());
+                ResetBackground(_images.First());
             }
 
-            var threshold = new Gray(10.0);
+            var threshold = new Gray(12.0);
             var maxValue = new Gray(byte.MaxValue);
 
             var boundingBoxes = _images
@@ -235,7 +242,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             if (_timeProvider.Now.Subtract(_noBoundingBox.Value).TotalSeconds > NoBoundingBoxBackgroundThreshold)
             {
-                UpdateMotionFinder(_images.First());
+                UpdateMotionFinder();
             }
         }
 
@@ -327,7 +334,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             }
         }
 
-        private void UpdateMotionFinder(Image<Gray, byte> background)
+        private void UpdateMotionFinder()
         {
             if (CurrentState == DetectorState.Entry)
             {
@@ -335,9 +342,24 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                 return;
             }
 
-            Log.Debug("(Re)initializing background");
+            // Correct the exposure
+            _correctExposure?.Invoke();
+
+            // Schedule the background reset after the exposure has been corrected
+            _resetBackground = _timeProvider.Now.AddSeconds(2);
+
+            // reset
+            _noBoundingBox = null;
+            _foundNothingCount = 0;
+        }
+
+        private void ResetBackground(Image<Gray, byte> background)
+        {
+            Log.Info("(Re)initializing background");
+            background.Save($@"C:\Thermobox\background{++_backgroundIndex}.jpg");
             MotionFinder = new MotionFinder<byte>(background);
             _noBoundingBox = null;
+            _resetBackground = null;
             _foundNothingCount = 0;
         }
     }

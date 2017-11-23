@@ -64,6 +64,11 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             var height = (int) _camera.Parameters[PLCamera.Height].GetValue();
             _size = new Size(width, height);
 
+            // Some camera models may have auto functions enabled. To set the gain value to a specific value,
+            // the Gain Auto function must be disabled first (if gain auto is available).
+            _camera.Parameters[PLCamera.GainAuto]
+                .TrySetValue(PLCamera.GainAuto.Off); // Set GainAuto to Off if it is writable.
+
             // Setup recorder
             _recorder = new Recorder(fps, _size, true);
 
@@ -83,7 +88,12 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             _camera.StreamGrabber.Start(GrabStrategy.LatestImages, GrabLoop.ProvidedByUser);
 
             // Detection class
-            var detector = new EntryDetector();
+            var detector = new EntryDetector(() =>
+            {
+                Log.Info("Automatically adjust exposure");
+                _camera.Parameters[PLCamera.ExposureAuto].SetValue(PLCamera.ExposureAuto.Off);
+                _camera.Parameters[PLCamera.ExposureAuto].SetValue(PLCamera.ExposureAuto.Once);
+            });
 
             // Event handlers
             detector.Enter += (sender, args) => Publish(Commands.CaptureStart, FileUtil.GenerateTimestampFilename());
@@ -103,9 +113,9 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
 
             // Some precalculated constants that we'll use later
             var roiWidthCutOff = _size.Width / 5;
-            var roiHeightCutOff = _size.Height / 3;
-            var roi = new Rectangle(roiWidthCutOff, roiHeightCutOff, roiWidthCutOff * 3, roiHeightCutOff);
-            var downscaledSize = new Size(_size.Width / 4, _size.Height / 4);
+            const int roiHeight = 180;
+            var roi = new Rectangle(roiWidthCutOff, _size.Height - 180, roiWidthCutOff * 3, roiHeight);
+            var downscaledSize = new Size(_size.Width / 2, roiHeight / 2);
 
             // Count error frames
             var errorCount = 0;
