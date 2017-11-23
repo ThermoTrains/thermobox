@@ -25,7 +25,7 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
 
         public static void Compress(string sourceFile, string outputVideoFile, Mode mode)
         {
-            Log.Info($"Compressing {sourceFile} with H.264 to {outputVideoFile}");
+            Log.Info($"Compressing {sourceFile} with H.264 to {outputVideoFile}. Using compression mode {mode}");
 
             using (var thermalImage = new ThermalImageFile(sourceFile))
             {
@@ -44,7 +44,7 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
 
                 // Write video from first bbox index to last with extracted min and max values
                 var trainScale = 256f / (maxTrain - minTrain);
-                var formatedScalePercent = ((1 - trainScale) * 100).ToString("N");
+                var formatedScalePercent = Math.Max(0, (1 - trainScale) * 100).ToString("N");
                 Log.Info($"Precision loss: {formatedScalePercent}%");
 
                 WriteVideo(outputVideoFile, boundingBoxes, thermalImage, minTrain, trainScale);
