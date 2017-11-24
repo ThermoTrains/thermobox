@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using System.Reflection;
 using Emgu.CV;
@@ -14,7 +15,8 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        private const double MinHeightFactor = .5;
+        private const double MinHeightFactor = .15;
+        private readonly int _minHeight;
         private static long i;
 
         public Image<Gray, TDepth> Background { get; }
@@ -22,6 +24,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         public MotionFinder(Image<Gray, TDepth> background)
         {
             Background = background;
+            _minHeight = Convert.ToInt32(background.Height * MinHeightFactor);
         }
 
         public Rectangle? FindBoundingBox(
@@ -39,10 +42,13 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             // create bounding box of all contours
             var bbox = MathUtil.GetMaxRectangle(contours);
-            
-            if (bbox.Height < source.Height * MinHeightFactor)
+
+            if (bbox.Height < _minHeight)
             {
-                Log.Info("Found a change, but it's not covering enough height");
+                // TODO remove debug log once done
+                Log.Info(
+                    $"Found a change, but it's not covering enough height. Required: {_minHeight}px. Actual: {bbox.Height}px");
+                Log.Info($"x:{bbox.X}, y:{bbox.Y}, height:{bbox.Height}, width:{bbox.Width}");
                 return null;
             }
 
@@ -75,14 +81,20 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             var hierarchy = new Mat();
             CvInvoke.FindContours(t, contours, hierarchy, RetrType.External, ChainApproxMethod.ChainApproxSimple);
 
+            // TODO remove this debugging code once done
             if (contours.Size > 0)
             {
-                for (var j = 0; j < contours.Size; j++)
+                i++;
+                if (i % 20 == 0)
                 {
-                    var bbox = CvInvoke.BoundingRectangle(contours[j]);
-                    source.Draw(bbox, new Gray(255), 2);
+                    for (var j = 0; j < contours.Size; j++)
+                    {
+                        var bbox = CvInvoke.BoundingRectangle(contours[j]);
+                        source.Draw(bbox, new Gray(255), 2);
+                    }
+                    source.Draw(MathUtil.GetMaxRectangle(contours), new Gray(200), 2);
+                    source.Save($@"C:\Thermobox\source{(i / 20)}.jpg");
                 }
-                source.Save($@"C:\Thermobox\source{++i}.jpg");
             }
 
             return contours;
