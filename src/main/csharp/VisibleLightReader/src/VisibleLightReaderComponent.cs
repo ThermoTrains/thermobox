@@ -13,7 +13,6 @@ using SebastianHaeni.ThermoBox.Common.Motion;
 using SebastianHaeni.ThermoBox.Common.Util;
 using Configuration = Basler.Pylon.Configuration;
 using System.IO;
-using Emgu.CV.CvEnum;
 
 namespace SebastianHaeni.ThermoBox.VisibleLightReader
 {
