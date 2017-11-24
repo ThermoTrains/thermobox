@@ -112,8 +112,8 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
 
             // Some precalculated constants that we'll use later
             var roiWidthCutOff = _size.Width / 5;
-            const int roiHeight = 180;
-            var roi = new Rectangle(roiWidthCutOff, _size.Height - 180, roiWidthCutOff * 3, roiHeight);
+            const int roiHeight = 200;
+            var roi = new Rectangle(roiWidthCutOff * 2, _size.Height - roiHeight, roiWidthCutOff * 3, roiHeight);
             var downscaledSize = new Size(_size.Width / 2, roiHeight / 2);
 
             // Count error frames

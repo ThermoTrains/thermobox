@@ -73,10 +73,8 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             if (contours.Size > 0)
             {
-                source.Save($@"C:\Thermobox\{++i}orig.jpg");
-                diff.Save($@"C:\Thermobox\{i}diff.jpg");
-                t.Save($@"C:\Thermobox\{i}contours.jpg");
-                if (i > 100) { i = 0; }
+                source.Save($@"C:\Thermobox\source{++i}.jpg");
+                t.Save($@"C:\Thermobox\contour{i}.jpg");
             }
 
             return contours;
