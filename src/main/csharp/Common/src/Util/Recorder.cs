@@ -25,6 +25,11 @@ namespace SebastianHaeni.ThermoBox.Common.Util
 
         public Recorder StartRecording(string filepath)
         {
+            return StartRecording(filepath, _fps);
+        }
+
+        public Recorder StartRecording(string filepath, int fps)
+        {
             if (_videoWriter != null)
             {
                 StopRecording();

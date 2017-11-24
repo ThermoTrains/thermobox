@@ -29,6 +29,7 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
 
         private readonly Camera _camera;
         private readonly Recorder _recorder;
+        private readonly int _fps;
         private readonly Size _size;
 
         private readonly PixelDataConverter _converter = new PixelDataConverter
@@ -45,6 +46,7 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
 
         private const int AnalyzeSequenceImages = 4;
         private const int ErrorThreshold = 5;
+        private const int RoiHeight = 200;
 
         public VisibleLightReaderComponent()
         {
@@ -58,18 +60,17 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             _camera.Open();
 
             // Read device parameters
-            var fps = (int) _camera.Parameters[PLCamera.AcquisitionFrameRate].GetValue();
+            _fps = (int) _camera.Parameters[PLCamera.AcquisitionFrameRate].GetValue();
             var width = (int) _camera.Parameters[PLCamera.Width].GetValue();
             var height = (int) _camera.Parameters[PLCamera.Height].GetValue();
             _size = new Size(width, height);
 
             // Some camera models may have auto functions enabled. To set the gain value to a specific value,
             // the Gain Auto function must be disabled first (if gain auto is available).
-            _camera.Parameters[PLCamera.GainAuto]
-                .TrySetValue(PLCamera.GainAuto.Off); // Set GainAuto to Off if it is writable.
+            _camera.Parameters[PLCamera.GainAuto].TrySetValue(PLCamera.GainAuto.Off);
 
             // Setup recorder
-            _recorder = new Recorder(fps, _size, true);
+            _recorder = new Recorder(_fps, _size, true);
 
             // Setup subscriptions
             Subscription(Commands.CaptureStart, (channel, filename) => _startRecording = filename);
@@ -89,7 +90,8 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             // Detection class
             var detector = new EntryDetector(() =>
             {
-                Log.Info("Automatically adjust exposure");
+                var exposureTime = _camera.Parameters[PLCamera.ExposureTime].GetValue();
+                Log.Info($"Exposure time is {exposureTime}μs. Automatically adjusting");
                 _camera.Parameters[PLCamera.ExposureAuto].SetValue(PLCamera.ExposureAuto.Off);
                 _camera.Parameters[PLCamera.ExposureAuto].SetValue(PLCamera.ExposureAuto.Once);
             });
@@ -112,9 +114,8 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
 
             // Some precalculated constants that we'll use later
             var roiWidthCutOff = _size.Width / 5;
-            const int roiHeight = 200;
-            var roi = new Rectangle(roiWidthCutOff * 2, _size.Height - roiHeight, roiWidthCutOff * 3, roiHeight);
-            var downscaledSize = new Size(_size.Width / 2, roiHeight / 2);
+            var roi = new Rectangle(roiWidthCutOff * 2, _size.Height - RoiHeight, roiWidthCutOff * 3, RoiHeight);
+            var downscaledSize = new Size(_size.Width / 2, RoiHeight / 2);
 
             // Count error frames
             var errorCount = 0;
@@ -235,7 +236,10 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             }
 
             _filename = $@"{CaptureFolder}\{filename}-visible.mp4";
-            _recorder.StartRecording(_filename);
+            var exposureTime = _camera.Parameters[PLCamera.ExposureTime].GetValue();
+            var fps = Math.Min(_fps, Convert.ToInt32(1_000_000 / exposureTime));
+
+            _recorder.StartRecording(_filename, fps);
         }
 
         private void StopRecording()
