@@ -1,8 +1,10 @@
 using System.Drawing;
+using System.Reflection;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
+using log4net;
 using SebastianHaeni.ThermoBox.Common.Util;
 
 namespace SebastianHaeni.ThermoBox.Common.Motion
@@ -10,7 +12,9 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
     public class MotionFinder<TDepth>
         where TDepth : new()
     {
-        private const double MinHeightFactor = .3;
+        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
+        private const double MinHeightFactor = .5;
         private static long i;
 
         public Image<Gray, TDepth> Background { get; }
@@ -35,10 +39,10 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             // create bounding box of all contours
             var bbox = MathUtil.GetMaxRectangle(contours);
-
             
             if (bbox.Height < source.Height * MinHeightFactor)
             {
+                Log.Info("Found a change, but it's not covering enough height");
                 return null;
             }
 
@@ -73,8 +77,12 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             if (contours.Size > 0)
             {
+                for (var j = 0; j < contours.Size; j++)
+                {
+                    var bbox = CvInvoke.BoundingRectangle(contours[j]);
+                    source.Draw(bbox, new Gray(255), 2);
+                }
                 source.Save($@"C:\Thermobox\source{++i}.jpg");
-                t.Save($@"C:\Thermobox\contour{i}.jpg");
             }
 
             return contours;

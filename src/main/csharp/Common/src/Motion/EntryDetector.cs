@@ -72,10 +72,13 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         private Image<Gray, byte>[] _images;
 
         private bool _paused;
-        private readonly ITimeProvider _timeProvider = new ActualTimeProvider();
         private static long _backgroundIndex;
+        private int _exitLikelihood;
+
+        private readonly ITimeProvider _timeProvider = new ActualTimeProvider();
         private readonly Action _correctExposure;
 
+        // TODO remove this debugging field when done
         private static long _entryCount;
 
         public EntryDetector()
@@ -171,7 +174,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                 ResetBackground(_images.First());
             }
 
-            var threshold = new Gray(12.0);
+            var threshold = new Gray(10.0);
             var maxValue = new Gray(byte.MaxValue);
 
             var boundingBoxes = _images
@@ -255,6 +258,8 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             // Not found anything useful.
             if (!boundingBoxes.Any())
             {
+                HandleExit(boundingBoxes, image);
+
                 return;
             }
 
@@ -273,16 +278,12 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             var indicator = 0;
 
-            // Count if the box is thinning or widening.
+            // Count if the box widening.
             foreach (var box in boundingBoxes)
             {
                 if (box.Width > lastWidth)
                 {
                     indicator++;
-                }
-                else if (box.Width < lastWidth)
-                {
-                    indicator--;
                 }
 
                 lastWidth = box.Width;
@@ -295,22 +296,48 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             // Entry
             if (indicator == referenceCount)
             {
-                image.Draw(boundingBoxes.Last(), new Gray(255), 2);
-                image.Save($@"C:\Thermobox\entry-{++_entryCount}.jpg");
-
-                ChangeState(DetectorState.Entry);
-                return;
-            }
-
-            // Exit
-            if (indicator == -referenceCount)
-            {
-                ChangeState(DetectorState.Exit);
+                HandleEntry(boundingBoxes, image);
                 return;
             }
 
             // Nothing
             ChangeState(DetectorState.Nothing);
+        }
+
+        private void HandleEntry(IEnumerable<Rectangle> boundingBoxes, Image<Gray, byte> image)
+        {
+            foreach (var bbox in boundingBoxes)
+            {
+                image.Draw(bbox, new Gray(255), 2);
+            }
+            image.Save($@"C:\Thermobox\entry-{++_entryCount}.jpg");
+
+            ChangeState(DetectorState.Entry);
+        }
+
+        private void HandleExit(IEnumerable<Rectangle> boundingBoxes, Image<Gray, byte> image)
+        {
+            if (CurrentState != DetectorState.Entry)
+            {
+                return;
+            }
+
+            _exitLikelihood++;
+
+            // Exit
+            if (_exitLikelihood <= 10)
+            {
+                return;
+            }
+
+            foreach (var bbox in boundingBoxes)
+            {
+                image.Draw(bbox, new Gray(255), 2);
+            }
+            image.Save($@"C:\Thermobox\exit-{++_entryCount}.jpg");
+
+            _exitLikelihood = 0;
+            ChangeState(DetectorState.Exit);
         }
 
         private void ChangeState(DetectorState state)
