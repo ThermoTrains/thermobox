@@ -68,12 +68,13 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
             thermalImage.ThermalSequencePlayer.SelectedIndex = firstFrame;
 
             var fps = (int) thermalImage.ThermalSequencePlayer.FrameRate;
+            var size = thermalImage.Size;
 
             using (var recorder = new Recorder(fps, thermalImage.Size, false).StartRecording(outputVideoFile))
             {
                 while (thermalImage.ThermalSequencePlayer.SelectedIndex < lastFrame)
                 {
-                    var image = GetSignalImage(thermalImage);
+                    var image = GetSignalImage(thermalImage, size.Width, size.Height);
                     thermalImage.ThermalSequencePlayer.Next();
 
                     var image8 = ScaleDown(image, minTrain, trainScale);
@@ -117,7 +118,10 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
         {
             thermalImage.ThermalSequencePlayer.First();
 
-            var background = GetSignalImage(thermalImage); // the background inherently is the first frame
+            var size = thermalImage.Size;
+
+            // the background inherently is the first frame
+            var background = GetSignalImage(thermalImage, size.Width, size.Height);
             var scale = 256f / (maxValue - minValue);
             var motionFinder = new MotionFinder<byte>(ScaleDown(background, minValue, scale));
             var boundingBoxes = new List<(int index, Rectangle rect)>();
@@ -125,7 +129,7 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
             for (var i = 0; i < thermalImage.ThermalSequencePlayer.Count(); i++)
             {
                 thermalImage.ThermalSequencePlayer.Next();
-                var image = GetSignalImage(thermalImage);
+                var image = GetSignalImage(thermalImage, size.Width, size.Height);
 
                 var image8 = ScaleDown(image, minValue, scale);
 
@@ -155,6 +159,7 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
             var medianBox = MathUtil.GetMedianRectangle(boundingBoxes.Select(v => v.rect));
             var minValues = new List<ushort>();
             var maxValues = new List<ushort>();
+            var size = thermalImage.Size;
 
             foreach (var (index, rect) in boundingBoxes)
             {
@@ -165,7 +170,7 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
                 }
 
                 thermalImage.ThermalSequencePlayer.SelectedIndex = index;
-                var image = GetSignalImage(thermalImage);
+                var image = GetSignalImage(thermalImage, size.Width, size.Height);
 
                 // Extract min and max within bounds
                 var min = ushort.MaxValue;
@@ -215,7 +220,7 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
             tagFile.Save();
         }
 
-        private static Image<Gray, ushort> GetSignalImage(ImageBase thermalImage)
+        private static Image<Gray, ushort> GetSignalImage(ImageBase thermalImage, int width, int height)
         {
             var pixels = thermalImage.ImageProcessing.GetPixels();
 
@@ -223,19 +228,22 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
             pixels.LockPixelData();
 
             // Declare an array to hold the bytes of the signal.
-            var signalValues = new byte[pixels.Stride * pixels.Height];
+            var signalValues = new byte[pixels.Stride * height];
 
             // Copy the signal values as bytes into the array.
             Marshal.Copy(pixels.PixelData, signalValues, 0, signalValues.Length);
 
-            // Write the bytes into the new image.
-            var image = new Image<Gray, ushort>(thermalImage.Width, thermalImage.Height);
+            // Free thermal image lock
+            pixels.UnlockPixelData();
 
-            for (var column = 0; column < pixels.Width; column++)
+            // Write the bytes into the new image.
+            var image = new Image<Gray, ushort>(width, height);
+
+            for (var column = 0; column < width; column++)
             {
-                for (var row = 0; row < pixels.Height; row++)
+                for (var row = 0; row < height; row++)
                 {
-                    var index = 2 * (row * pixels.Width + column);
+                    var index = 2 * (row * width + column);
                     // Each part contains one byte
                     var part1 = signalValues[index];
                     var part2 = signalValues[index + 1];
@@ -245,9 +253,6 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
                     image.Data[row, column, 0] = merged;
                 }
             }
-
-            // Free thermal image lock
-            pixels.UnlockPixelData();
 
             return image;
         }
