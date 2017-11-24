@@ -76,7 +76,18 @@ namespace Test.Common.Motion
                 .Reverse() // just by reversing, the train exits :)
                 .ToArray();
 
+            var emptyImages = Enumerable.Range(1, 1)
+                .Select(i => new Image<Rgb, byte>($@"Resources\train-0.jpg"))
+                .Select(image => image.Convert<Gray, byte>())
+                .ToArray();
+
             detector.Tick(images);
+
+            // Tick a few times with empty images should trigger exit
+            for (var i = 0; i <= EntryDetector.ExitThreshold; i++)
+            {
+                detector.Tick(emptyImages);
+            }
 
             Assert.AreEqual(DetectorState.Exit, detector.CurrentState);
         }
@@ -98,7 +109,23 @@ namespace Test.Common.Motion
                 .Reverse()
                 .ToArray();
 
+            var emptyImages = Enumerable.Range(1, 1)
+                .Select(i => new Image<Rgb, byte>($@"Resources\train-0.jpg"))
+                .Select(image => image.Convert<Gray, byte>())
+                .Select(image =>
+                {
+                    // flipping the image and reverse the order will produce a train entering from the other side
+                    CvInvoke.Flip(image, image, FlipType.Horizontal);
+                    return image;
+                })
+                .ToArray();
+
             detector.Tick(images);
+
+            for (var i = 0; i <= EntryDetector.ExitThreshold; i++)
+            {
+                detector.Tick(emptyImages);
+            }
 
             Assert.AreEqual(DetectorState.Exit, detector.CurrentState);
         }
@@ -147,10 +174,9 @@ namespace Test.Common.Motion
                 .Select(train => train.Convert<Gray, byte>())
                 .ToArray();
 
-            var exitImages = Enumerable.Range(1, 4)
-                .Select(i => new Image<Rgb, byte>($@"Resources\train-{i}.jpg"))
+            var emptyImages = Enumerable.Range(1, 1)
+                .Select(i => new Image<Rgb, byte>(@"Resources\train-0.jpg"))
                 .Select(image => image.Convert<Gray, byte>())
-                .Reverse() // just by reversing, the train exits :)
                 .ToArray();
 
             timeProvider.CurrentTime = Year2000;
@@ -160,7 +186,12 @@ namespace Test.Common.Motion
             Assert.IsFalse(abortRaised);
 
             timeProvider.CurrentTime = timeProvider.CurrentTime.AddSeconds(EntryDetector.MinTimeAfterEntry - 1);
-            detector.Tick(exitImages);
+
+            for (var i = 0; i <= EntryDetector.ExitThreshold; i++)
+            {
+                detector.Tick(emptyImages);
+            }
+
             Assert.AreEqual(DetectorState.Exit, detector.CurrentState);
             Assert.IsTrue(abortRaised);
         }
@@ -187,10 +218,9 @@ namespace Test.Common.Motion
                 .Select(train => train.Convert<Gray, byte>())
                 .ToArray();
 
-            var exitImages = Enumerable.Range(1, 4)
-                .Select(i => new Image<Rgb, byte>($@"Resources\train-{i}.jpg"))
+            var emptyImages = Enumerable.Range(1, 1)
+                .Select(i => new Image<Rgb, byte>(@"Resources\train-0.jpg"))
                 .Select(image => image.Convert<Gray, byte>())
-                .Reverse() // just by reversing, the train exits :)
                 .ToArray();
 
             timeProvider.CurrentTime = Year2000;
@@ -200,7 +230,12 @@ namespace Test.Common.Motion
             Assert.IsFalse(exitRaised);
 
             timeProvider.CurrentTime = timeProvider.CurrentTime.AddSeconds(EntryDetector.MinTimeAfterEntry);
-            detector.Tick(exitImages);
+
+            for (var i = 0; i <= EntryDetector.ExitThreshold; i++)
+            {
+                detector.Tick(emptyImages);
+            }
+
             Assert.AreEqual(DetectorState.Exit, detector.CurrentState);
             Assert.IsTrue(exitRaised);
         }
@@ -449,7 +484,7 @@ namespace Test.Common.Motion
         }
 
         /// <summary>
-        /// Test that no new recording is started if shortly after a stop a new train is picked up.
+        /// Test that no new recording is started if shortly after a stop, a new train is picked up.
         /// </summary>
         [TestMethod]
         public void TestFastExitEntryRefusal()
@@ -470,10 +505,9 @@ namespace Test.Common.Motion
                 .Select(train => train.Convert<Gray, byte>())
                 .ToArray();
 
-            var exitImages = Enumerable.Range(1, 4)
-                .Select(i => new Image<Rgb, byte>($@"Resources\train-{i}.jpg"))
+            var emptyImages = Enumerable.Range(1, 1)
+                .Select(i => new Image<Rgb, byte>(@"Resources\train-0.jpg"))
                 .Select(image => image.Convert<Gray, byte>())
-                .Reverse() // just by reversing, the train exits :)
                 .ToArray();
 
             timeProvider.CurrentTime = Year2000;
@@ -483,7 +517,10 @@ namespace Test.Common.Motion
             Assert.IsFalse(exitRaised);
 
             timeProvider.CurrentTime = timeProvider.CurrentTime.AddSeconds(EntryDetector.MinTimeAfterEntry + 1);
-            detector.Tick(exitImages);
+            for (var i = 0; i <= EntryDetector.ExitThreshold; i++)
+            {
+                detector.Tick(emptyImages);
+            }
             Assert.AreEqual(DetectorState.Exit, detector.CurrentState);
             Assert.IsTrue(exitRaised);
             enterRaised = false;
@@ -519,10 +556,9 @@ namespace Test.Common.Motion
                 .Select(image => image.Convert<Gray, byte>())
                 .ToArray();
 
-            var exitImages = Enumerable.Range(1, 4)
-                .Select(i => new Image<Rgb, byte>($@"Resources\train-{i}.jpg"))
+            var emptyImages = Enumerable.Range(1, 1)
+                .Select(i => new Image<Rgb, byte>(@"Resources\train-0.jpg"))
                 .Select(image => image.Convert<Gray, byte>())
-                .Reverse() // just by reversing, the train exits :)
                 .ToArray();
 
             for (var k = 0; k < 2; k++)
@@ -569,7 +605,10 @@ namespace Test.Common.Motion
 
                 // exit
                 timeProvider.CurrentTime = timeProvider.CurrentTime.AddSeconds(5);
-                detector.Tick(exitImages);
+                for (var i = 0; i <= EntryDetector.ExitThreshold; i++)
+                {
+                    detector.Tick(emptyImages);
+                }
                 Assert.AreEqual(DetectorState.Exit, detector.CurrentState);
                 Assert.IsFalse(pauseRaised);
                 Assert.IsTrue(exitRaised);
@@ -641,34 +680,6 @@ namespace Test.Common.Motion
             detector.Tick(images);
 
             Assert.AreNotEqual(background, detector.MotionFinder.Background);
-        }
-
-        /// <summary>
-        /// Provoke a reinitialization of the background after nothing happened for a long time. But 
-        /// it should happen since the state is "Entry".
-        /// </summary>
-        [TestMethod]
-        public void TestReinitializationOfBackgroundNotWhenTrainEntry()
-        {
-            var background = Background;
-            var timeProvider = new ExternalTimeProvider();
-            var detector = new EntryDetector(background, timeProvider);
-
-            var images = Enumerable.Range(0, 1)
-                .Select(i => new Image<Rgb, byte>($@"Resources\train-0.jpg"))
-                .Select(train => train.Convert<Gray, byte>())
-                .ToArray();
-
-            timeProvider.CurrentTime = Year2000;
-            detector.Tick(images);
-
-            detector.CurrentState = DetectorState.Entry;
-
-            timeProvider.CurrentTime =
-                timeProvider.CurrentTime.AddSeconds(EntryDetector.NoBoundingBoxBackgroundThreshold + 1);
-            detector.Tick(images);
-
-            Assert.AreEqual(background, detector.MotionFinder.Background);
         }
 
         /// <summary>
