@@ -56,6 +56,8 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         /// </summary>
         public const int MaxRecordingDuration = 60 * 15;
 
+        public const int AutoExposureTimeout = 2;
+
         public MotionFinder<byte> MotionFinder { get; private set; }
 
         private int _recordingSeconds;
@@ -346,7 +348,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             _correctExposure?.Invoke();
 
             // Schedule the background reset after the exposure has been corrected
-            _resetBackground = _timeProvider.Now.AddSeconds(2);
+            _resetBackground = _timeProvider.Now.AddSeconds(AutoExposureTimeout);
 
             // reset
             _noBoundingBox = null;

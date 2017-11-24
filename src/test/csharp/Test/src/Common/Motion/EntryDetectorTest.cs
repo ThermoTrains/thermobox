@@ -627,10 +627,17 @@ namespace Test.Common.Motion
                 .Select(train => train.Convert<Gray, byte>())
                 .ToArray();
 
+            // initialize
             timeProvider.CurrentTime = Year2000;
             detector.Tick(images);
+
+            // no motion => schedule reset
             timeProvider.CurrentTime =
                 timeProvider.CurrentTime.AddSeconds(EntryDetector.NoBoundingBoxBackgroundThreshold + 1);
+            detector.Tick(images);
+
+            // do reset
+            timeProvider.CurrentTime = timeProvider.CurrentTime.AddSeconds(EntryDetector.AutoExposureTimeout + 1);
             detector.Tick(images);
 
             Assert.AreNotEqual(background, detector.MotionFinder.Background);
