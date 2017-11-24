@@ -91,5 +91,31 @@ namespace SebastianHaeni.ThermoBox.Common.Util
 
             return diff / (float) size;
         }
+
+        public static int TrainNumberCheckSum(string number)
+        {
+            var sum = 0;
+            var mult = 2;
+
+            for (var i = number.Length - 1; i != -1; i--)
+            {
+                var c = number[i];
+
+                if (c >= '0' && c <= '9')
+                {
+                    var zsum = ushort.Parse("" + c) * mult;
+                    sum += zsum % 10 + zsum / 10;
+                }
+
+                if (c >= '0' && c <= '9')
+                {
+                    mult = 3 - mult;
+                }
+            }
+
+            var pber = (10 - sum % 10) % 10;
+
+            return pber;
+        }
     }
 }
