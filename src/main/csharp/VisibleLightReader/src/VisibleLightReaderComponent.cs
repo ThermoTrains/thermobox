@@ -252,7 +252,7 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             using (var capture = new VideoCapture(_filename))
             {
                 var frame = capture.QueryFrame().ToImage<Bgr, byte>();
-                var snapshotFilename = $@"{_filename}-visible.mp4.jpg";
+                var snapshotFilename = $@"{_filename}.jpg";
                 frame.Save(snapshotFilename);
                 Publish(Commands.Upload, snapshotFilename);
             }

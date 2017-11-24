@@ -36,7 +36,7 @@ namespace SebastianHaeni.ThermoBox.Common.Util
             }
 
             FrameCounter = 0;
-            _videoWriter = new VideoWriter(filepath, Compression, _fps, _size, _isColor);
+            _videoWriter = new VideoWriter(filepath, Compression, fps, _size, _isColor);
 
             return this;
         }
