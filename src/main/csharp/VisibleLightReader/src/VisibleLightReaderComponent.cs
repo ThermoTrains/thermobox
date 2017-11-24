@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Drawing;
+using System.Globalization;
 using System.Reflection;
 using System.Threading.Tasks;
 using Basler.Pylon;
@@ -91,7 +92,8 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             var detector = new EntryDetector(() =>
             {
                 var exposureTime = _camera.Parameters[PLCamera.ExposureTime].GetValue();
-                Log.Info($"Exposure time is {exposureTime}μs. Automatically adjusting");
+                var formattedExposureTime = string.Format(CultureInfo.CurrentCulture, "{0:0,0}", exposureTime);
+                Log.Info($"Exposure time is {formattedExposureTime}μs. Automatically adjusting");
                 _camera.Parameters[PLCamera.ExposureAuto].SetValue(PLCamera.ExposureAuto.Off);
                 _camera.Parameters[PLCamera.ExposureAuto].SetValue(PLCamera.ExposureAuto.Once);
             });
@@ -246,6 +248,15 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
         {
             Log.Info("Stopping capture.");
             _recorder.StopRecording();
+
+            using (var capture = new VideoCapture(_filename))
+            {
+                var frame = capture.QueryFrame().ToImage<Bgr, byte>();
+                var snapshotFilename = $@"{_filename}-visible.mp4.jpg";
+                frame.Save(snapshotFilename);
+                Publish(Commands.Upload, snapshotFilename);
+            }
+
             Publish(Commands.Upload, _filename);
         }
 

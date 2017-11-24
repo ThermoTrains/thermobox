@@ -56,7 +56,15 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         /// </summary>
         public const int MaxRecordingDuration = 60 * 15;
 
+        /// <summary>
+        /// Timeout background reset to accomodate camera adjusting lens exposure time.
+        /// </summary>
         public const int AutoExposureTimeout = 2;
+
+        /// <summary>
+        /// Threshold that has to be met in succession.
+        /// </summary>
+        public const int ExitThreshold = 5;
 
         public MotionFinder<byte> MotionFinder { get; private set; }
 
@@ -325,7 +333,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             _exitLikelihood++;
 
             // Exit
-            if (_exitLikelihood <= 10)
+            if (_exitLikelihood <= ExitThreshold)
             {
                 return;
             }

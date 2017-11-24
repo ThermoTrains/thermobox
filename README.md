@@ -15,6 +15,13 @@ Automatic detection of isolation deficiencies on rolling trains
 
 ### Redis
 
+All Thermobox components communicate via a Redis instance reachable on localhost.
+You can either install your own Redis instance on your computer.
+
+Or you can use a docker image.
+
+#### Redis with Docker
+
 To create a local redis instance, use the following command:
 
     docker run -p 6379:6379 --name thermobox-redis -d redis
@@ -27,4 +34,9 @@ To connect to it and execute commands, use the following command:
 
 * `publish cmd:capture:start <timestamp>` Start capturing
 * `publish cmd:capture:stop 0` Stop capturing and send the artifacts via `cmd:delivery:upload`
+* `publish cmd:capture:pause` Pause capturing - pause from recording state
+* `publish cmd:capture:resume` Resume capturing - resume from paused state
+* `publish cmd:capture:resume` Abort capturing - discard everything allocated so far
+* `publish cmd:delivery:compress <file>` Compress FLIR Seq file and send via `cmd:delivery:upload`
 * `publish cmd:delivery:upload <file>` Uploads the file to a remote server
+* `publish cmd:kill` Stop every component

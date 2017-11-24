@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using System.Reflection;
 using Emgu.CV;
@@ -70,6 +71,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             var hierarchy = new Mat();
             CvInvoke.FindContours(t, contours, hierarchy, RetrType.External, ChainApproxMethod.ChainApproxSimple);
 
+            // TODO remove this debugging code once done
             if (contours.Size > 0)
             {
                 for (var j = 0; j < contours.Size; j++)
