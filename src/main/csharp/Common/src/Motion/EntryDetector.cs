@@ -174,7 +174,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                 ResetBackground(_images.First());
             }
 
-            var threshold = new Gray(10.0);
+            var threshold = new Gray(7.0);
             var maxValue = new Gray(byte.MaxValue);
 
             var boundingBoxes = _images

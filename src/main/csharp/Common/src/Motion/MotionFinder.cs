@@ -14,7 +14,6 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        private const double MinHeightFactor = .5;
         private static long i;
 
         public Image<Gray, TDepth> Background { get; }
@@ -29,7 +28,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             Gray threshold,
             Gray maxValue)
         {
-            var contours = GetContours(Background, source, threshold, maxValue);
+            var contours = GetContours(Background, source, threshold, maxValue, 8, 15);
 
             if (contours.Size == 0)
             {
@@ -39,12 +38,6 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             // create bounding box of all contours
             var bbox = MathUtil.GetMaxRectangle(contours);
-            
-            if (bbox.Height < source.Height * MinHeightFactor)
-            {
-                Log.Info("Found a change, but it's not covering enough height");
-                return null;
-            }
 
             return bbox;
         }
@@ -56,7 +49,9 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             Image<Gray, TDepth> background,
             Image<Gray, TDepth> source,
             Gray threshold,
-            Gray maxValue)
+            Gray maxValue,
+            int erode,
+            int dilate)
         {
             // compute absolute diff between current frame and first frame
             var diff = background.AbsDiff(source);
@@ -65,10 +60,10 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             var t = diff.ThresholdBinary(threshold, maxValue);
 
             // erode to get rid of small dots
-            t = t.Erode(8);
+            t = t.Erode(erode);
 
             // dilate the threshold image to fill in holes
-            t = t.Dilate(15);
+            t = t.Dilate(dilate);
 
             // find contours
             var contours = new VectorOfVectorOfPoint();
@@ -82,6 +77,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                     var bbox = CvInvoke.BoundingRectangle(contours[j]);
                     source.Draw(bbox, new Gray(255), 2);
                 }
+                source.Draw(MathUtil.GetMaxRectangle(contours), new Gray(200), 2);
                 source.Save($@"C:\Thermobox\source{++i}.jpg");
             }
 
@@ -98,7 +94,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         /// <returns></returns>
         public bool HasDifference(Image<Gray, TDepth> image1, Image<Gray, TDepth> image2, Gray threshold, Gray maxValue)
         {
-            return GetContours(image1, image2, threshold, maxValue).Size > 0;
+            return GetContours(image1, image2, threshold, maxValue, 3, 15).Size > 0;
         }
     }
 }
