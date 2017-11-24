@@ -88,12 +88,12 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             _correctExposure = correctExposure;
         }
 
-        public EntryDetector(Image<Gray, byte> background)
+        public EntryDetector(IImage background)
         {
             ResetBackground(background);
         }
 
-        public EntryDetector(Image<Gray, byte> background, ITimeProvider timeProvider) : this(background)
+        public EntryDetector(IImage background, ITimeProvider timeProvider) : this(background)
         {
             _timeProvider = timeProvider;
         }
@@ -201,6 +201,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                     if (_noMotionTimestamp == null)
                     {
                         // The train (or whatever) is covering the whole image and it's not moving
+                        Log.Info("No motion, timestamp set");
                         _noMotionTimestamp = _timeProvider.Now;
                     }
                 }
@@ -239,6 +240,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             if (!_noBoundingBox.HasValue)
             {
+                Log.Info("No Bounding box, timestamp set");
                 _noBoundingBox = _timeProvider.Now;
             }
 
@@ -355,11 +357,15 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             _foundNothingCount = 0;
         }
 
-        private void ResetBackground(Image<Gray, byte> background)
+        private void ResetBackground(IImage background)
         {
             Log.Info("(Re)initializing background");
-            background.Save($@"C:\Thermobox\background{++_backgroundIndex}.jpg");
-            MotionFinder = new MotionFinder<byte>(background);
+
+            var blurredBackground = new Image<Gray, byte>(background.Size);
+            CvInvoke.Blur(background, blurredBackground, new Size(10, 10), new Point(-1, -1));
+
+            blurredBackground.Save($@"C:\Thermobox\background{++_backgroundIndex}.jpg");
+            MotionFinder = new MotionFinder<byte>(blurredBackground);
             _noBoundingBox = null;
             _resetBackground = null;
             _foundNothingCount = 0;
