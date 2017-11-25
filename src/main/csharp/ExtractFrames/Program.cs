@@ -4,7 +4,7 @@ using Emgu.CV;
 using Emgu.CV.CvEnum;
 using log4net;
 
-namespace ExtractFrames
+namespace SebastianHaeni.ThermoBox.ExtractFrames
 {
     internal static class Program
     {
