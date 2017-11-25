@@ -189,7 +189,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             var maxValue = new Gray(byte.MaxValue);
 
             var boundingBoxes = _images
-                .Select(image => MotionFinder.FindBoundingBox(image, threshold, maxValue))
+                .Select(image => MotionFinder.FindBoundingBox(image, threshold, maxValue, 8, 15))
                 .Where(box => box.HasValue)
                 .Select(box => box.Value)
                 .ToArray();

@@ -86,8 +86,10 @@ namespace Test.Common.Util
         [TestMethod]
         public void TestTrainNumberCheckSum()
         {
-            Assert.AreEqual(0, MathUtil.TrainNumberCheckSum("923002"));
-            Assert.AreEqual(6, MathUtil.TrainNumberCheckSum("511022"));
+            Assert.AreEqual(4, MathUtil.TrainNumberCheckSum("50852673106"));
+            Assert.AreEqual(1, MathUtil.TrainNumberCheckSum("50853633111"));
+            Assert.AreEqual(0, MathUtil.TrainNumberCheckSum("50858633111"));
+            Assert.AreEqual(8, MathUtil.TrainNumberCheckSum("91854450008"));
         }
     }
 }

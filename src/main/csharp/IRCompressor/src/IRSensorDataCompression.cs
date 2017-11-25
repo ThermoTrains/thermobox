@@ -116,15 +116,19 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
             double maxValue,
             double minValue)
         {
-            thermalImage.ThermalSequencePlayer.First();
-
+            // The background is the last frame since we always record until the
+            // train has completely left the frame.
+            thermalImage.ThermalSequencePlayer.End();
+            thermalImage.ThermalSequencePlayer.SelectedIndex -= 1;
             var size = thermalImage.Size;
-
-            // the background inherently is the first frame
             var background = GetSignalImage(thermalImage, size.Width, size.Height);
             var scale = 256f / (maxValue - minValue);
-            var motionFinder = new MotionFinder<byte>(ScaleDown(background, minValue, scale));
+            var scaledDownBackground = ScaleDown(background, minValue, scale);
+            var motionFinder = new MotionFinder<byte>(scaledDownBackground);
             var boundingBoxes = new List<(int index, Rectangle rect)>();
+
+            // Move to start again
+            thermalImage.ThermalSequencePlayer.First();
 
             for (var i = 0; i < thermalImage.ThermalSequencePlayer.Count(); i++)
             {
@@ -133,8 +137,7 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
 
                 var image8 = ScaleDown(image, minValue, scale);
 
-                // TODO do not hard code threshold
-                var bbox = motionFinder.FindBoundingBox(image8, new Gray(20.0), new Gray(byte.MaxValue));
+                var bbox = motionFinder.FindBoundingBox(image8, new Gray(8.0), new Gray(byte.MaxValue), 10, 0);
 
                 if (!bbox.HasValue)
                 {

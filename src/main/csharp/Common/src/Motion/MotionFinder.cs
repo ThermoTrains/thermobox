@@ -27,9 +27,11 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         public Rectangle? FindBoundingBox(
             Image<Gray, TDepth> source,
             Gray threshold,
-            Gray maxValue)
+            Gray maxValue,
+            int erode,
+            int dilate)
         {
-            var contours = GetContours(Background, source, threshold, maxValue, 8, 15);
+            var contours = GetContours(Background, source, threshold, maxValue, erode, dilate);
 
             if (contours.Size == 0)
             {

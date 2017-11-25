@@ -18,8 +18,8 @@ namespace Test.Common.Motion
             var threshold = new Gray(40.0);
             var maxValue = new Gray(byte.MaxValue);
 
-            var gray= new Image<Rgb, byte>($@"Resources\train-2.jpg").Convert<Gray, byte>();
-            var bbox = motionFinder.FindBoundingBox(gray, threshold, maxValue);
+            var gray = new Image<Rgb, byte>($@"Resources\train-2.jpg").Convert<Gray, byte>();
+            var bbox = motionFinder.FindBoundingBox(gray, threshold, maxValue, 8, 15);
 
             Assert.IsTrue(bbox.HasValue);
         }
