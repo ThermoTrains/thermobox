@@ -77,6 +77,8 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         private DateTime _entryDateTime = DateTime.MinValue;
         private DateTime? _exitDateTime;
         private DateTime? _resetBackground;
+        private DateTime _lastBackgroundReset = DateTime.MaxValue;
+
         private Image<Gray, byte>[] _images;
 
         private bool _paused;
@@ -134,6 +136,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         {
             CurrentState = DetectorState.Exit;
             _exitDateTime = _timeProvider.Now;
+            _recordingSeconds = 0;
 
             if (_timeProvider.Now.Subtract(TimeSpan.FromSeconds(MinTimeAfterEntry)) < _entryDateTime)
             {
@@ -198,7 +201,10 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             if (boundingBoxes.Any())
             {
-                _noBoundingBox = null;
+                if (_timeProvider.Now.Subtract(_lastBackgroundReset).TotalMinutes < 5)
+                {
+                    _noBoundingBox = null;
+                }
 
                 if (CurrentState != DetectorState.Entry)
                 {
@@ -281,27 +287,8 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                 return;
             }
 
-            var lastWidth = first.Width;
-
-            var indicator = 0;
-
-            // Count if the box widening.
-            foreach (var box in boundingBoxes)
-            {
-                if (box.Width > lastWidth)
-                {
-                    indicator++;
-                }
-
-                lastWidth = box.Width;
-            }
-
-            // The count of images that indicates consistent width change.
-            // The first image represents the start, so we cannot count that.
-            var referenceCount = boundingBoxes.Count - 1;
-
             // Entry
-            if (indicator == referenceCount)
+            if (boundingBoxes.All(bbox => bbox.Width == image.Width))
             {
                 HandleEntry(boundingBoxes, image);
                 return;
@@ -400,6 +387,8 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             blurredBackground.Save($@"C:\Thermobox\background{++_backgroundIndex}.jpg");
             MotionFinder = new MotionFinder<byte>(blurredBackground);
+
+            _lastBackgroundReset = _timeProvider.Now;
             _noBoundingBox = null;
             _resetBackground = null;
             _foundNothingCount = 0;
