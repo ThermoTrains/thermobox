@@ -66,10 +66,6 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             var height = (int) _camera.Parameters[PLCamera.Height].GetValue();
             _size = new Size(width, height);
 
-            // Some camera models may have auto functions enabled. To set the gain value to a specific value,
-            // the Gain Auto function must be disabled first (if gain auto is available).
-            _camera.Parameters[PLCamera.GainAuto].TrySetValue(PLCamera.GainAuto.Off);
-
             // Setup recorder
             _recorder = new Recorder(_fps, _size, true);
 
@@ -92,10 +88,16 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             var detector = new EntryDetector(() =>
             {
                 var exposureTime = _camera.Parameters[PLCamera.ExposureTime].GetValue();
+                var gain = _camera.Parameters[PLCamera.Gain].GetValue();
                 var formattedExposureTime = string.Format(CultureInfo.CurrentCulture, "{0:0,0}", exposureTime);
-                Log.Info($"Exposure time is {formattedExposureTime}μs. Automatically adjusting");
+                var formattedGain = string.Format(CultureInfo.CurrentCulture, "{0:0,0}", gain);
+                Log.Info($"Exposure is {formattedExposureTime}μs. Gain is {formattedGain}db. Automatically adjusting");
+
                 _camera.Parameters[PLCamera.ExposureAuto].SetValue(PLCamera.ExposureAuto.Off);
+                _camera.Parameters[PLCamera.GainAuto].TrySetValue(PLCamera.GainAuto.Off);
+
                 _camera.Parameters[PLCamera.ExposureAuto].SetValue(PLCamera.ExposureAuto.Once);
+                _camera.Parameters[PLCamera.GainAuto].TrySetValue(PLCamera.GainAuto.Once);
             });
 
             // Event handlers
@@ -115,8 +117,7 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             var convertedBuffer = new byte[_size.Width * _size.Height * 3];
 
             // Some precalculated constants that we'll use later
-            var roiWidthCutOff = _size.Width / 5;
-            var roi = new Rectangle(roiWidthCutOff * 2, _size.Height - RoiHeight, roiWidthCutOff * 3, RoiHeight);
+            var roi = new Rectangle(_size.Width / 2, _size.Height - RoiHeight, _size.Width / 2, RoiHeight);
             var downscaledSize = new Size(_size.Width / 2, RoiHeight / 2);
 
             // Count error frames
