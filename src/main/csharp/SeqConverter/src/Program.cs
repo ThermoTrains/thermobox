@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Emgu.CV.CvEnum;
 using SebastianHaeni.ThermoBox.IRCompressor;
+using SebastianHaeni.ThermoBox.SeqConverter.Color;
 
 namespace SebastianHaeni.ThermoBox.SeqConverter
 {
@@ -22,7 +22,7 @@ namespace SebastianHaeni.ThermoBox.SeqConverter
             }
             else if (IsMp4File(input) && IsMp4File(output))
             {
-                ColorConverter.Convert(input, output, palette);
+                ColorConverter.ConvertToColor(input, output, palette);
             }
             else
             {
@@ -45,7 +45,7 @@ namespace SebastianHaeni.ThermoBox.SeqConverter
             string input,
             string output,
             IRSensorDataCompression.Mode mode,
-            ColorMapType palette
+            ColorMap palette
             ) ParseArguments(IReadOnlyList<string> args)
         {
             if (args.Count != 2 && args.Count != 3)
@@ -64,14 +64,14 @@ Modes for .seq to .mp4:
 - Train: tries to find horizontal movement and limits compression on this area
 
 Modes for .mp4 to .mp4 (Color Palette):
-Autumn, Bone, Jet, Winter, Rainbow, Ocean, Summer, Spring, Cool, Hsv, Pink, Hot");
+Iron, Hot");
                 Environment.Exit(1);
             }
 
             var input = args[0];
             var output = args[1];
             var mode = IRSensorDataCompression.Mode.Other;
-            var palette = ColorMapType.Hot;
+            var palette = ColorMap.Iron;
 
             if (args.Count != 3)
             {
