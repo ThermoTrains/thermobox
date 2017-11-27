@@ -65,7 +65,7 @@
     <Compile Include="..\Config\SharedVersionInfo.cs">
       <Link>Properties\SharedVersionInfo.cs</Link>
     </Compile>
-    <Compile Include="Program.cs" />
+    <Compile Include="src\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
