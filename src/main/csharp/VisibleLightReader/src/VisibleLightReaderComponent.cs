@@ -47,7 +47,8 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
 
         private const int AnalyzeSequenceImages = 4;
         private const int ErrorThreshold = 5;
-        private const int RoiHeight = 200;
+        private const int RoiY = 200;
+        private const int RoiHeight = 155;
 
         public VisibleLightReaderComponent()
         {
@@ -104,8 +105,6 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             detector.Enter += (sender, args) => Publish(Commands.CaptureStart, FileUtil.GenerateTimestampFilename());
             detector.Exit += (sender, args) => Publish(Commands.CaptureStop);
             detector.Abort += (sender, args) => Publish(Commands.CaptureAbort);
-            detector.Pause += (sender, args) => Publish(Commands.CapturePause);
-            detector.Resume += (sender, args) => Publish(Commands.CaptureResume);
 
             // Array to contain images that will be collected until it's full and we analyze them.
             var images = new Image<Gray, byte>[AnalyzeSequenceImages];
@@ -117,7 +116,7 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             var convertedBuffer = new byte[_size.Width * _size.Height * 3];
 
             // Some precalculated constants that we'll use later
-            var roi = new Rectangle(_size.Width / 2, _size.Height - RoiHeight, _size.Width / 2, RoiHeight);
+            var roi = new Rectangle(0, _size.Height - RoiY, _size.Width, RoiHeight);
             var downscaledSize = new Size(_size.Width / 2, RoiHeight / 2);
 
             // Count error frames
@@ -158,7 +157,7 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
                     };
 
                     // Write to recorder (if the recorder is not recording, it will discard it)
-                    _recorder.Write(image);
+                    _recorder.Write(image.Mat);
 
                     // Convert to grayscale image for further analysis and cut down the region of interest
                     var grayImage = image.Convert<Gray, byte>();

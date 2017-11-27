@@ -41,8 +41,7 @@ namespace SebastianHaeni.ThermoBox.Common.Util
             return this;
         }
 
-        public Recorder Write<TColor>(Image<TColor, byte> image)
-            where TColor : struct, IColor
+        public Recorder Write(Mat image)
         {
             if (_videoWriter == null || _paused)
             {
@@ -50,7 +49,7 @@ namespace SebastianHaeni.ThermoBox.Common.Util
             }
 
             FrameCounter++;
-            _videoWriter.Write(image.Mat);
+            _videoWriter.Write(image);
 
             return this;
         }

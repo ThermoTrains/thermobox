@@ -79,7 +79,7 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
 
                     var image8 = ScaleDown(image, minTrain, trainScale);
 
-                    recorder.Write(image8);
+                    recorder.Write(image8.Mat);
                 }
 
                 Log.Info($"Created video with {recorder.FrameCounter} frames");

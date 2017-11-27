@@ -15,8 +15,6 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         public event EventHandler Enter;
         public event EventHandler Exit;
         public event EventHandler Abort;
-        public event EventHandler Pause;
-        public event EventHandler Resume;
 
         public DetectorState CurrentState { get; set; } = DetectorState.Nothing;
 
@@ -28,43 +26,42 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         public const int NoBoundingBoxBackgroundThreshold = 30;
 
         /// <summary>
-        /// Once this threshold is reached, the recording will be paused.
-        /// After we find bounding boxes again, we resume.
-        /// </summary>
-        public const int NoMotionPauseThreshold = 10;
-
-        /// <summary>
-        /// Minimum time motion has to be picked up again when we are paused.
-        /// </summary>
-        public const int ResumingThreshold = 1;
-
-        /// <summary>
-        /// The minimum time that has to pass after a train exited the image until one can
-        /// entering can trigger a new recording.
+        /// The minimum seconds that have to pass after a train exited until one can
+        /// trigger a new recording.
         /// </summary>
         public const int MinTimeAfterExit = 3;
 
         /// <summary>
-        /// The minimum time that has to pass after the train entered. Otherwise an abort will
+        /// The minimum seconds that has to pass after the train entered. Otherwise an abort will
         /// be published.
         /// </summary>
-        public const int MinTimeAfterEntry = 5;
+        public const int MinTimeAfterEntry = 60;
 
         /// <summary>
-        /// Maximum time a recording can be. After it has passed, the recording will be stopped.
-        /// Assuming the longest trains are 300 meters long and travel at 0.9 km/h that would result in 15 minutes.
+        /// Maximum seconds a recording can be. After it has passed, the recording will be stopped.
+        /// It may happen that a train stands still at the entrance for quite a while.
         /// </summary>
-        public const int MaxRecordingDuration = 60 * 15;
+        public const int MaxRecordingDuration = 60 * 45;
 
         /// <summary>
-        /// Timeout background reset to accomodate camera adjusting lens exposure time.
+        /// Timeout in seconds background reset to accomodate camera adjusting lens exposure time.
         /// </summary>
         public const int AutoExposureTimeout = 2;
 
         /// <summary>
         /// Threshold that has to be met in succession.
         /// </summary>
-        public const int ExitThreshold = 5;
+        public const int ExitThreshold = 3;
+
+        /// <summary>
+        /// Timeout in minutes after the background will be force reset.
+        /// </summary>
+        private const int ForceBackgroundResetTimeout = 5;
+
+        /// <summary>
+        /// Time in seconds for how long we keep the camera rolling after we detect an exit.
+        /// </summary>
+        private const int ExitScheduleTime = 10;
 
         public MotionFinder<byte> MotionFinder { get; private set; }
 
@@ -72,24 +69,21 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         private int _foundNothingCount;
         private DateTime? _noBoundingBox;
         private DateTime? _lastTick;
-        private DateTime? _noMotionTimestamp;
-        private DateTime? _lastMotionTimestamp;
         private DateTime _entryDateTime = DateTime.MinValue;
         private DateTime? _exitDateTime;
         private DateTime? _resetBackground;
         private DateTime _lastBackgroundReset = DateTime.MaxValue;
+        private DateTime? _scheduledExit;
 
         private Image<Gray, byte>[] _images;
 
-        private bool _paused;
         private static long _backgroundIndex;
         private int _exitLikelihood;
+        private static int _i;
 
         private readonly ITimeProvider _timeProvider = new ActualTimeProvider();
         private readonly Action _correctExposure;
-
-        // TODO remove this debugging field when done
-        private static long _entryCount;
+        private double _backgroundMean;
 
         public EntryDetector()
         {
@@ -137,6 +131,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             CurrentState = DetectorState.Exit;
             _exitDateTime = _timeProvider.Now;
             _recordingSeconds = 0;
+            _scheduledExit = null;
 
             if (_timeProvider.Now.Subtract(TimeSpan.FromSeconds(MinTimeAfterEntry)) < _entryDateTime)
             {
@@ -164,7 +159,16 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
         public void Tick(Image<Gray, byte>[] images)
         {
-            if (CurrentState == DetectorState.Entry && !_paused && _lastTick.HasValue)
+            if (_scheduledExit.HasValue)
+            {
+                if (_timeProvider.Now >= _scheduledExit)
+                {
+                    ChangeState(DetectorState.Exit);
+                }
+
+                return;
+            }
+            if (CurrentState == DetectorState.Entry && _lastTick.HasValue)
             {
                 _recordingSeconds += (int) _timeProvider.Now.Subtract(_lastTick.Value).TotalSeconds;
 
@@ -180,84 +184,64 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             _lastTick = _timeProvider.Now;
             _images = images;
 
-            if (MotionFinder == null || _resetBackground.HasValue && _resetBackground.Value < _timeProvider.Now)
+            if (MotionFinder == null ||
+                _resetBackground.HasValue && _resetBackground.Value < _timeProvider.Now ||
+                CurrentState != DetectorState.Entry && _timeProvider.Now.Subtract(_lastBackgroundReset).TotalMinutes >
+                ForceBackgroundResetTimeout)
             {
-                ResetBackground(_images.First());
+                ResetBackground(_images.Last());
             }
 
-            var threshold = new Gray(10.0);
-            var maxValue = new Gray(byte.MaxValue);
+            EvaluateState(_images);
+        }
 
-            var boundingBoxes = _images
-                .Select(image => MotionFinder.FindBoundingBox(image, threshold, maxValue, 8, 15))
-                .Where(box => box.HasValue)
-                .Select(box => box.Value)
-                .ToArray();
+        private void EvaluateState(IReadOnlyCollection<Image<Gray, byte>> images)
+        {
+            var backgroundMean = _backgroundMean * images.Count;
+            var imageMean = images
+                .Select(img => CvInvoke.Mean(img).V0)
+                .Sum();
 
-            Evaluate(boundingBoxes, _images.Last());
-
-            // After some time we need to use a new background.
-            // We do this if either no bounding box was found n times or if nothing was the result n times.
-
-            if (boundingBoxes.Any())
+            ///// DEBUG
+            if (backgroundMean - imageMean > backgroundMean * .05 && backgroundMean - imageMean <= backgroundMean * .15)
             {
-                if (_timeProvider.Now.Subtract(_lastBackgroundReset).TotalMinutes < 5)
+                Log.Info($"DEBUG: BG Mean: {backgroundMean}, image mean: {imageMean}");
+            }
+            ///// END DEBUG
+
+            if (backgroundMean - imageMean > backgroundMean * .15)
+            {
+                ///// DEBUG
+                _i++;
+                if (_i % 20 == 0)
                 {
-                    _noBoundingBox = null;
+                    _images.Last().Save($@"C:\Thermobox\trigger-{_i}.jpg");
                 }
+                Log.Info($"TRIGGER: BG Mean: {backgroundMean}, image mean: {imageMean}");
+                ///// END DEBUG
 
-                if (CurrentState != DetectorState.Entry)
-                {
-                    return;
-                }
-
-                if (!MotionFinder.HasDifference(_images.First(), _images.Last(), threshold, maxValue))
-                {
-                    _lastMotionTimestamp = null;
-
-                    if (_noMotionTimestamp == null)
-                    {
-                        // The train (or whatever) is covering the whole image and it's not moving
-                        Log.Info("No motion, timestamp set");
-                        _noMotionTimestamp = _timeProvider.Now;
-                    }
-                }
-                else
-                {
-                    _noMotionTimestamp = null;
-
-                    if (_lastMotionTimestamp == null)
-                    {
-                        _lastMotionTimestamp = _timeProvider.Now;
-                    }
-
-                    if (_paused &&
-                        _timeProvider.Now.Subtract(TimeSpan.FromSeconds(ResumingThreshold)) > _lastMotionTimestamp)
-                    {
-                        // We were paused => resume since we have found some moving things again.
-                        Resume?.Invoke(this, new EventArgs());
-                        _paused = false;
-                    }
-                }
-
-                if (_paused ||
-                    _noMotionTimestamp == null ||
-                    _timeProvider.Now.Subtract(TimeSpan.FromSeconds(NoMotionPauseThreshold)) <= _noMotionTimestamp)
-                {
-                    return;
-                }
-
-                // Not found moving things for a while => pause until we find movement again.
-                _noMotionTimestamp = null;
-                Pause?.Invoke(this, new EventArgs());
-                _paused = true;
+                _noBoundingBox = null;
+                HandleEntry();
 
                 return;
             }
 
-            if (!_noBoundingBox.HasValue)
+            if (CurrentState == DetectorState.Entry)
             {
-                Log.Info("No Bounding box, timestamp set");
+                ///// DEBUG
+                Log.Info($"EXIT: BG Mean: {backgroundMean}, image mean: {imageMean}");
+                ///// END DEBUG
+
+                // activate background reset timer
+                _noBoundingBox = _timeProvider.Now.Subtract(TimeSpan.FromSeconds(NoBoundingBoxBackgroundThreshold - 5));
+                HandleExit();
+
+                return;
+            }
+
+            if (_noBoundingBox == null)
+            {
+                Log.Info("No difference => setting background reset timer");
                 _noBoundingBox = _timeProvider.Now;
             }
 
@@ -265,51 +249,17 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             {
                 UpdateMotionFinder();
             }
-        }
-
-        private void Evaluate(IReadOnlyCollection<Rectangle> boundingBoxes, Image<Gray, byte> image)
-        {
-            // Not found anything useful.
-            if (!boundingBoxes.Any())
-            {
-                HandleExit(boundingBoxes, image);
-
-                return;
-            }
-
-            var first = boundingBoxes.First();
-
-            var threshold = MotionFinder.Background.Size.Width / 100;
-            var rightBound = first.X + first.Width > MotionFinder.Background.Width - threshold;
-
-            if (!rightBound)
-            {
-                return;
-            }
-
-            // Entry
-            if (boundingBoxes.All(bbox => bbox.Width == image.Width))
-            {
-                HandleEntry(boundingBoxes, image);
-                return;
-            }
 
             // Nothing
             ChangeState(DetectorState.Nothing);
         }
 
-        private void HandleEntry(IEnumerable<Rectangle> boundingBoxes, Image<Gray, byte> image)
+        private void HandleEntry()
         {
-            foreach (var bbox in boundingBoxes)
-            {
-                image.Draw(bbox, new Gray(255), 2);
-            }
-            image.Save($@"C:\Thermobox\entry-{++_entryCount}.jpg");
-
             ChangeState(DetectorState.Entry);
         }
 
-        private void HandleExit(IEnumerable<Rectangle> boundingBoxes, Image<Gray, byte> image)
+        private void HandleExit()
         {
             if (CurrentState != DetectorState.Entry)
             {
@@ -324,14 +274,10 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                 return;
             }
 
-            foreach (var bbox in boundingBoxes)
-            {
-                image.Draw(bbox, new Gray(255), 2);
-            }
-            image.Save($@"C:\Thermobox\exit-{++_entryCount}.jpg");
+            Log.Info($"Exit confirmed. Stopping recording in {ExitScheduleTime} seconds.");
 
             _exitLikelihood = 0;
-            ChangeState(DetectorState.Exit);
+            _scheduledExit = _timeProvider.Now.AddSeconds(ExitScheduleTime);
         }
 
         private void ChangeState(DetectorState state)
@@ -387,6 +333,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             blurredBackground.Save($@"C:\Thermobox\background{++_backgroundIndex}.jpg");
             MotionFinder = new MotionFinder<byte>(blurredBackground);
+            _backgroundMean = CvInvoke.Mean(blurredBackground).V0;
 
             _lastBackgroundReset = _timeProvider.Now;
             _noBoundingBox = null;

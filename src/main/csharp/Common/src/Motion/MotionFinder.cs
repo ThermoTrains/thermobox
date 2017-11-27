@@ -1,11 +1,8 @@
-using System;
 using System.Drawing;
-using System.Reflection;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
-using log4net;
 using SebastianHaeni.ThermoBox.Common.Util;
 
 namespace SebastianHaeni.ThermoBox.Common.Motion
@@ -13,10 +10,6 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
     public class MotionFinder<TDepth>
         where TDepth : new()
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
-        private static long i;
-
         public Image<Gray, TDepth> Background { get; }
 
         public MotionFinder(Image<Gray, TDepth> background)
@@ -73,32 +66,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             var hierarchy = new Mat();
             CvInvoke.FindContours(t, contours, hierarchy, RetrType.External, ChainApproxMethod.ChainApproxSimple);
 
-            // TODO remove this debugging code once done
-            if (contours.Size > 0)
-            {
-                for (var j = 0; j < contours.Size; j++)
-                {
-                    var bbox = CvInvoke.BoundingRectangle(contours[j]);
-                    source.Draw(bbox, new Gray(255), 2);
-                }
-                source.Draw(MathUtil.GetMaxRectangle(contours), new Gray(200), 2);
-                source.Save($@"C:\Thermobox\source{++i}.jpg");
-            }
-
             return contours;
-        }
-
-        /// <summary>
-        /// Tells if the two images have a significant difference.
-        /// </summary>
-        /// <param name="image1"></param>
-        /// <param name="image2"></param>
-        /// <param name="threshold"></param>
-        /// <param name="maxValue"></param>
-        /// <returns></returns>
-        public bool HasDifference(Image<Gray, TDepth> image1, Image<Gray, TDepth> image2, Gray threshold, Gray maxValue)
-        {
-            return GetContours(image1, image2, threshold, maxValue, 3, 15).Size > 0;
         }
     }
 }
