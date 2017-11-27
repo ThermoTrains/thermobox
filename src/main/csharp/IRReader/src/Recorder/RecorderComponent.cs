@@ -125,6 +125,12 @@ namespace SebastianHaeni.ThermoBox.IRReader.Recorder
             Retry(() => _camera.Recorder.Stop(), () => _camera.Recorder.Status == RecorderState.Stopped);
             Log.Info($"Recorded {_camera.Recorder.FrameCount} frames");
 
+            if (!File.Exists(FlirVideoFileName))
+            {
+                Log.Warn($"Recorded file does not exist: {FlirVideoFileName}. Recorded 0 frames?");
+                return;
+            }
+
             // Extract first frame as reference frame and upload it.
             ExtractSnapshot(FlirVideoFileName);
 
