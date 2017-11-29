@@ -51,7 +51,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         /// <summary>
         /// Threshold that has to be met in succession.
         /// </summary>
-        public const int ExitThreshold = 3;
+        public const int ExitThreshold = 8;
 
         /// <summary>
         /// Timeout in minutes after the background will be force reset.
@@ -61,7 +61,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         /// <summary>
         /// Time in seconds for how long we keep the camera rolling after we detect an exit.
         /// </summary>
-        private const int ExitScheduleTime = 10;
+        private const int ExitScheduleTime = 20;
 
         public MotionFinder<byte> MotionFinder { get; private set; }
 
