@@ -35,6 +35,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CLI", "CLI", "{ECC2429C-EE0
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExtractFrames", "src\main\csharp\ExtractFrames\ExtractFrames.csproj", "{FC9904F2-1243-4BDA-B3F5-30C027B9F726}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WeatherReader", "src\main\csharp\WeatherReader\WeatherReader.csproj", "{3E24D392-E384-420A-B834-AD89F5EBC532}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -115,6 +117,14 @@ Global
 		{FC9904F2-1243-4BDA-B3F5-30C027B9F726}.Release|x64.Build.0 = Release|x64
 		{FC9904F2-1243-4BDA-B3F5-30C027B9F726}.Release|x86.ActiveCfg = Release|x86
 		{FC9904F2-1243-4BDA-B3F5-30C027B9F726}.Release|x86.Build.0 = Release|x86
+		{3E24D392-E384-420A-B834-AD89F5EBC532}.Debug|x64.ActiveCfg = Debug|x64
+		{3E24D392-E384-420A-B834-AD89F5EBC532}.Debug|x64.Build.0 = Debug|x64
+		{3E24D392-E384-420A-B834-AD89F5EBC532}.Debug|x86.ActiveCfg = Debug|x86
+		{3E24D392-E384-420A-B834-AD89F5EBC532}.Debug|x86.Build.0 = Debug|x86
+		{3E24D392-E384-420A-B834-AD89F5EBC532}.Release|x64.ActiveCfg = Release|x64
+		{3E24D392-E384-420A-B834-AD89F5EBC532}.Release|x64.Build.0 = Release|x64
+		{3E24D392-E384-420A-B834-AD89F5EBC532}.Release|x86.ActiveCfg = Release|x86
+		{3E24D392-E384-420A-B834-AD89F5EBC532}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -127,6 +137,7 @@ Global
 		{308451F1-52CF-4360-9107-0BA13603878B} = {E99B4FF2-E48B-4D78-A6D4-38E2E6161BA0}
 		{9F045547-5FB2-4C3D-B6FE-8C43D7E31116} = {ECC2429C-EE04-42C3-AF94-2D4F5E47DB45}
 		{FC9904F2-1243-4BDA-B3F5-30C027B9F726} = {ECC2429C-EE04-42C3-AF94-2D4F5E47DB45}
+		{3E24D392-E384-420A-B834-AD89F5EBC532} = {73445814-2BF4-48EC-B3B5-000BCF1039B1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {28A70028-07D1-45E5-A773-D143F77AFDC3}

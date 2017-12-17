@@ -16,9 +16,9 @@ if "%ERRORLEVEL%"=="0" (
   pause
   exit
 )
-tasklist /FI "IMAGENAME eq TemperatureReader.exe" 2>NUL | find /I /N "TemperatureReader.exe">NUL
+tasklist /FI "IMAGENAME eq WeatherReader.exe" 2>NUL | find /I /N "WeatherReader.exe">NUL
 if "%ERRORLEVEL%"=="0" (
-  echo TemperatureReader is already running
+  echo WeatherReader is already running
   pause
   exit
 )
@@ -85,6 +85,6 @@ rem
 ping 127.0.0.1 -n 4 > nul
 
 start /B Uploader\bin\release\Uploader.exe
-start /B TemperatureReader\bin\release\TemperatureReader.exe
+start /B WeatherReader\bin\release\WeatherReader.exe
 start /B IRCompressor\bin\release\IRCompressor.exe
 start /B IRReader\bin\release\IRReader.exe

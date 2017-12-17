@@ -8,7 +8,6 @@ using System.Drawing;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Linq;
-using SebastianHaeni.ThermoBox.Common.Motion;
 using SebastianHaeni.ThermoBox.Common.Util;
 
 namespace SebastianHaeni.ThermoBox.IRCompressor
@@ -131,6 +130,7 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
             return (minValue, maxValue);
         }
 
+        /*
         private static List<(int index, Rectangle rect)> FindTrainBoundingBoxes(
             ThermalImageFile thermalImage,
             double maxValue,
@@ -174,6 +174,7 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
             }
             return boundingBoxes;
         }
+        */
 
         private static (int minTrain, int maxTrain) FindMinMaxTrainValues(
             IReadOnlyCollection<(int index, Rectangle rect)> boundingBoxes,
