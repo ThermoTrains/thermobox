@@ -296,36 +296,5 @@ namespace Test.Common.Motion
 
             Assert.AreEqual(DetectorState.Nothing, detector.CurrentState);
         }
-
-        /// <summary>
-        /// Provoke a reinitialization of the background after nothing happened for a long time.
-        /// </summary>
-        [TestMethod]
-        public void TestReinitializationOfBackground()
-        {
-            var background = Background;
-            var timeProvider = new ExternalTimeProvider();
-            var detector = new EntryDetector(background, timeProvider);
-
-            var images = Enumerable.Range(0, 1)
-                .Select(i => new Image<Rgb, byte>(@"Resources\train-0.jpg"))
-                .Select(train => train.Convert<Gray, byte>())
-                .ToArray();
-
-            // initialize
-            timeProvider.CurrentTime = Year2000;
-            detector.Tick(images);
-
-            // no motion => schedule reset
-            timeProvider.CurrentTime =
-                timeProvider.CurrentTime.AddSeconds(EntryDetector.NoBoundingBoxBackgroundThreshold + 1);
-            detector.Tick(images);
-
-            // do reset
-            timeProvider.CurrentTime = timeProvider.CurrentTime.AddSeconds(EntryDetector.AutoExposureTimeout + 1);
-            detector.Tick(images);
-
-            Assert.AreNotEqual(background, detector.MotionFinder.Background);
-        }
     }
 }

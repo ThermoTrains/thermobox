@@ -63,8 +63,6 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         /// </summary>
         private const int ExitScheduleTime = 20;
 
-        public MotionFinder<byte> MotionFinder { get; private set; }
-
         private int _recordingSeconds;
         private int _foundNothingCount;
         private DateTime? _noBoundingBox;
@@ -126,14 +124,14 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             Enter?.Invoke(this, new EventArgs());
         }
 
-        private void OnTrainExit()
+        private void OnTrainExit(bool abort)
         {
             CurrentState = DetectorState.Exit;
             _exitDateTime = _timeProvider.Now;
             _recordingSeconds = 0;
             _scheduledExit = null;
 
-            if (_timeProvider.Now.Subtract(TimeSpan.FromSeconds(MinTimeAfterEntry)) < _entryDateTime)
+            if (abort)
             {
                 // It has not been long enough since the entry. So this probably was a misfire.
                 Log.Warn($"Entry followed by exit was shorter than {MinTimeAfterEntry}s. Aborting.");
@@ -176,7 +174,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                 {
                     // We are in enter mode for quite long now, we should abort.
                     Log.Warn($"Recording for longer than {MaxRecordingDuration}s.");
-                    OnTrainExit();
+                    OnTrainExit(false);
                     return;
                 }
             }
@@ -184,10 +182,10 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             _lastTick = _timeProvider.Now;
             _images = images;
 
-            if (MotionFinder == null ||
+            if (_backgroundMean <= 0 ||
                 _resetBackground.HasValue && _resetBackground.Value < _timeProvider.Now ||
-                CurrentState != DetectorState.Entry && _timeProvider.Now.Subtract(_lastBackgroundReset).TotalMinutes >
-                ForceBackgroundResetTimeout)
+                CurrentState != DetectorState.Entry &&
+                _timeProvider.Now.Subtract(_lastBackgroundReset).TotalMinutes > ForceBackgroundResetTimeout)
             {
                 ResetBackground(_images.Last());
             }
@@ -274,9 +272,15 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                 return;
             }
 
-            Log.Info($"Exit confirmed. Stopping recording in {ExitScheduleTime} seconds.");
-
             _exitLikelihood = 0;
+
+            if (_timeProvider.Now.Subtract(TimeSpan.FromSeconds(MinTimeAfterEntry)) < _entryDateTime)
+            {
+                OnTrainExit(true);
+                return;
+            }
+
+            Log.Info($"Exit confirmed. Stopping recording in {ExitScheduleTime} seconds.");
             _scheduledExit = _timeProvider.Now.AddSeconds(ExitScheduleTime);
         }
 
@@ -295,7 +299,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                     OnTrainEnter();
                     return;
                 case DetectorState.Exit:
-                    OnTrainExit();
+                    OnTrainExit(false);
                     return;
                 case DetectorState.Nothing:
                     OnNothing();
@@ -332,7 +336,6 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             CvInvoke.Blur(background, blurredBackground, new Size(10, 10), new Point(-1, -1));
 
             blurredBackground.Save($@"C:\Thermobox\background{++_backgroundIndex}.jpg");
-            MotionFinder = new MotionFinder<byte>(blurredBackground);
             _backgroundMean = CvInvoke.Mean(blurredBackground).V0;
 
             _lastBackgroundReset = _timeProvider.Now;
