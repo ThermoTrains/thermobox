@@ -33,9 +33,21 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
                 var (minValue, maxValue) = FindMinMaxValues(thermalImage);
 
                 // Find bounding box of moving train
-                var boundingBoxes = mode == Mode.Train
-                    ? FindTrainBoundingBoxes(thermalImage, maxValue, minValue)
-                    : new List<(int index, Rectangle rect)>();
+
+                var boundingBoxes = new[]
+                {
+                    (0, new Rectangle(0, 90, 640, 335))
+                }.ToList();
+
+                /*
+                Log.Info($"{minValue}/{maxValue}");
+                var signalImage = GetSignalImage(thermalImage, thermalImage.Width, thermalImage.Height);
+                var outImage = ScaleDown(signalImage, minValue, 256f / (maxValue - minValue));
+                CvInvoke.EqualizeHist(outImage, outImage);
+                outImage.ROI = boundingBoxes[0].Item2;
+
+                outImage.Save(@"C:\Thermobox\test.jpg");
+                Environment.Exit(1);*/
 
                 // Find min and max within the train bounds
                 var (minTrain, maxTrain) = boundingBoxes.Count > 0
@@ -46,6 +58,8 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
                 var trainScale = 256f / (maxTrain - minTrain);
                 var formatedScalePercent = Math.Max(0, (1 - trainScale) * 100).ToString("N");
                 Log.Info($"Precision loss: {formatedScalePercent}%");
+
+                boundingBoxes.Clear();
 
                 WriteVideo(outputVideoFile, boundingBoxes, thermalImage, minTrain, trainScale);
 
@@ -61,9 +75,15 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
             int minTrain,
             float trainScale)
         {
-            var firstFrame = boundingBoxes.Select(v => v.index).DefaultIfEmpty(0).Min();
-            var lastFrame = boundingBoxes.Select(v => v.index)
-                .DefaultIfEmpty(thermalImage.ThermalSequencePlayer.Count() - 1).Max();
+            var firstFrame = boundingBoxes
+                .Select(v => v.index)
+                .DefaultIfEmpty(0)
+                .Min();
+
+            var lastFrame = boundingBoxes
+                .Select(v => v.index)
+                .DefaultIfEmpty(thermalImage.ThermalSequencePlayer.Count() - 1)
+                .Max();
 
             thermalImage.ThermalSequencePlayer.SelectedIndex = firstFrame;
 
@@ -93,7 +113,7 @@ namespace SebastianHaeni.ThermoBox.IRCompressor
             var minValue = int.MaxValue;
             var maxValue = int.MinValue;
 
-            for (var i = 0; i < thermalImage.ThermalSequencePlayer.Count(); i++)
+            for (var i = 0; i < 1; i++)
             {
                 if (thermalImage.MinSignalValue < minValue)
                 {
