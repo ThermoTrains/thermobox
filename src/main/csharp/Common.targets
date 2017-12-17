@@ -3,16 +3,15 @@
 
   <PropertyGroup>
     <VersionNumber Condition="'$(VersionNumber)' == ''">1.0.0.0</VersionNumber>
+    <GeneratedAssemblyInfoFile>$(SolutionDir)\src\main\csharp\config\SharedVersionInfo.cs</GeneratedAssemblyInfoFile>
   </PropertyGroup>
 
   <Target Name="UpdateSharedAssemblyInfo"
           BeforeTargets="PrepareForBuild"
-          Condition="'${UpdatedAssemblyInfo}' != true">
-    <PropertyGroup>
-      <UpdatedAssemblyInfo>true</UpdatedAssemblyInfo>
-    </PropertyGroup>
+          Inputs="$(MSBuildThisFileFullPath)"
+          Outputs="$(GeneratedAssemblyInfoFile)">
     <AssemblyInfo CodeLanguage="CS"
-                  OutputFile="$(SolutionDir)\src\main\csharp\config\SharedVersionInfo.cs"
+                  OutputFile="$(GeneratedAssemblyInfoFile)"
                   AssemblyInformationalVersion="$(VersionNumber)"/>
   </Target>
 </Project>
