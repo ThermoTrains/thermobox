@@ -42,8 +42,9 @@ namespace SebastianHaeni.ThermoBox.WeatherReader
                         recordingDirectory.Create();
                     }
 
-                    File.WriteAllText($@"{CaptureFolder}\{recordingFilename}-weather.json", jsonData);
-                    Publish(Commands.Upload, recordingFilename);
+                    var absolutePath = $@"{CaptureFolder}\{recordingFilename}-weather.json";
+                    File.WriteAllText(absolutePath, jsonData);
+                    Publish(Commands.Upload, absolutePath);
                 }
 
                 recordingFilename = null;

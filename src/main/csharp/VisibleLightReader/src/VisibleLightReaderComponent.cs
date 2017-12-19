@@ -47,7 +47,7 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
 
         private const int AnalyzeSequenceImages = 4;
         private const int ErrorThreshold = 5;
-        private const int RoiY = 200;
+        private const int RoiY = 260;
         private const int RoiHeight = 155;
 
         public VisibleLightReaderComponent()
