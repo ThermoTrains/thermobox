@@ -174,7 +174,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
             if (CurrentState == DetectorState.Entry)
             {
-                if (_entryDateTime.AddSeconds(MaxRecordingDuration) > _timeProvider.Now)
+                if (_entryDateTime.AddSeconds(MaxRecordingDuration) < _timeProvider.Now)
                 {
                     // We are in enter mode for quite long now, we should abort.
                     Log.Warn($"Recording for longer than {MaxRecordingDuration}s.");
