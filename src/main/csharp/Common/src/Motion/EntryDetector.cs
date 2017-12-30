@@ -159,7 +159,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
             {
                 // Correct the exposure
                 _correctExposure?.Invoke();
-                _scheduledExposureCorrection = _timeProvider.Now.AddSeconds(60);
+                _scheduledExposureCorrection = _timeProvider.Now.Subtract(TimeSpan.FromSeconds(90));
             }
 
             if (_scheduledExit.HasValue)
