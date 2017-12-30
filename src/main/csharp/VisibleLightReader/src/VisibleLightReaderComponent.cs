@@ -88,6 +88,7 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             // Detection class
             var detector = new EntryDetector(() =>
             {
+                // correct exposure
                 var exposureTime = _camera.Parameters[PLCamera.ExposureTime].GetValue();
                 var gain = _camera.Parameters[PLCamera.Gain].GetValue();
                 var formattedExposureTime = string.Format(CultureInfo.CurrentCulture, "{0:0,0}", exposureTime);

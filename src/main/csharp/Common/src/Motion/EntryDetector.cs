@@ -63,15 +63,14 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         /// </summary>
         private const int ExitScheduleTime = 20;
 
-        private int _recordingSeconds;
         private int _foundNothingCount;
         private DateTime? _noBoundingBox;
-        private DateTime? _lastTick;
         private DateTime _entryDateTime = DateTime.MinValue;
         private DateTime? _exitDateTime;
         private DateTime? _resetBackground;
         private DateTime _lastBackgroundReset = DateTime.MaxValue;
         private DateTime? _scheduledExit;
+        private DateTime _scheduledExposureCorrection = DateTime.MaxValue;
 
         private Image<Gray, byte>[] _images;
 
@@ -128,7 +127,6 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         {
             CurrentState = DetectorState.Exit;
             _exitDateTime = _timeProvider.Now;
-            _recordingSeconds = 0;
             _scheduledExit = null;
 
             if (abort)
@@ -157,6 +155,13 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
         public void Tick(Image<Gray, byte>[] images)
         {
+            if (_correctExposure != null && _scheduledExposureCorrection > _timeProvider.Now)
+            {
+                // Correct the exposure
+                _correctExposure?.Invoke();
+                _scheduledExposureCorrection = _timeProvider.Now.AddSeconds(60);
+            }
+
             if (_scheduledExit.HasValue)
             {
                 if (_timeProvider.Now >= _scheduledExit)
@@ -166,11 +171,10 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
                 return;
             }
-            if (CurrentState == DetectorState.Entry && _lastTick.HasValue)
-            {
-                _recordingSeconds += (int) _timeProvider.Now.Subtract(_lastTick.Value).TotalSeconds;
 
-                if (_recordingSeconds > MaxRecordingDuration)
+            if (CurrentState == DetectorState.Entry)
+            {
+                if (_entryDateTime.AddSeconds(MaxRecordingDuration) > _timeProvider.Now)
                 {
                     // We are in enter mode for quite long now, we should abort.
                     Log.Warn($"Recording for longer than {MaxRecordingDuration}s.");
@@ -179,7 +183,6 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                 }
             }
 
-            _lastTick = _timeProvider.Now;
             _images = images;
 
             if (_backgroundMean <= 0 ||
@@ -316,9 +319,6 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
                 // do not update background as long as something has entered and not exited yet
                 return;
             }
-
-            // Correct the exposure
-            _correctExposure?.Invoke();
 
             // Schedule the background reset after the exposure has been corrected
             _resetBackground = _timeProvider.Now.AddSeconds(AutoExposureTimeout);

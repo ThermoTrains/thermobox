@@ -54,7 +54,7 @@ namespace SebastianHaeni.ThermoBox.IRReader.Recorder
             }
             else
             {
-                Log.Info($"Camera conenction status changed: {e.Status}");
+                Log.Info($"Camera connection status changed: {e.Status}");
             }
         }
 
