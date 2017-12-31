@@ -58,11 +58,11 @@ namespace SebastianHaeni.ThermoBox.VisibleLightReader
             // Set the acquisition mode to free running continuous acquisition when the camera is opened.
             _camera.CameraOpened += Configuration.AcquireContinuous;
 
-            // Set the acquisition frame rate to 1 FPS as we don't want more and we want small files.
-            _camera.Parameters[PLCamera.AcquisitionFrameRate].SetValue(1);
-
             // Open the connection to the camera device.
             _camera.Open();
+
+            // Set the acquisition frame rate to 1 FPS as we don't want more and we want small files.
+            _camera.Parameters[PLCamera.AcquisitionFrameRate].SetValue(1);
 
             // Read device parameters
             _fps = (int) _camera.Parameters[PLCamera.AcquisitionFrameRate].GetValue();
