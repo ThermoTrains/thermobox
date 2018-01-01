@@ -70,7 +70,7 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
         private DateTime? _resetBackground;
         private DateTime _lastBackgroundReset = DateTime.MaxValue;
         private DateTime? _scheduledExit;
-        private DateTime _scheduledExposureCorrection = DateTime.MaxValue;
+        private DateTime _scheduledExposureCorrection = DateTime.MinValue;
 
         private Image<Gray, byte>[] _images;
 
@@ -155,11 +155,11 @@ namespace SebastianHaeni.ThermoBox.Common.Motion
 
         public void Tick(Image<Gray, byte>[] images)
         {
-            if (_correctExposure != null && _scheduledExposureCorrection > _timeProvider.Now)
+            if (_correctExposure != null && _scheduledExposureCorrection < _timeProvider.Now)
             {
                 // Correct the exposure
                 _correctExposure?.Invoke();
-                _scheduledExposureCorrection = _timeProvider.Now.Subtract(TimeSpan.FromSeconds(90));
+                _scheduledExposureCorrection = _timeProvider.Now.AddSeconds(90);
             }
 
             if (_scheduledExit.HasValue)
